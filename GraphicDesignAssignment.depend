@@ -1,0 +1,88 @@
+# depslib dependency file v1.0
+1774968968 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\camera.c
+	"../includes/camera.h"
+	<GL/gl.h>
+	<GL/freeglut.h>
+	<GL/glu.h>
+	<math.h>
+
+1774969349 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\camera.h
+	"../includes/math3d.h"
+	<stdbool.h>
+
+1774968968 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
+	"../includes/map.h"
+	"../includes/camera.h"
+	"../includes/car.h"
+	"../includes/lighting.h"
+	<GL/freeglut.h>
+	<stdbool.h>
+
+1774352285 c:\users\gyöngyösi márk\glfw\glfw-3.4.bin.win64\include\glfw\glfw3.h
+	<stddef.h>
+	<stdint.h>
+	<vulkan/vulkan.h>
+	<GLES/gl.h>
+	<GLES/glext.h>
+	<GLES2/gl2.h>
+	<GLES2/gl2ext.h>
+	<GLES3/gl3.h>
+	<GLES2/gl2ext.h>
+	<GLES3/gl31.h>
+	<GLES2/gl2ext.h>
+	<GLES3/gl32.h>
+	<GLES2/gl2ext.h>
+	<OpenGL/gl3.h>
+	<OpenGL/gl3ext.h>
+	<GL/glcorearb.h>
+	<GL/glext.h>
+	<OpenGL/glu.h>
+	<GL/glu.h>
+	<OpenGL/gl.h>
+	<GL/gl.h>
+	<GL/glext.h>
+
+1774969796 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\map.h
+
+1774969103 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\map.c
+	"../includes/cJSON.h"
+	"../includes/map.h"
+	"../includes/lighting.h"
+	<GL/gl.h>
+	<GL/glu.h>
+	<GL/freeglut.h>
+	<stdlib.h>
+	<stdio.h>
+	<string.h>
+	<math.h>
+
+1774449239 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\math3d.h
+
+1774968968 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\car.c
+	"../includes/car.h"
+	"../includes/lighting.h"
+	<GL/freeglut.h>
+	<math.h>
+
+1774969796 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\car.h
+	"math3d.h"
+
+1774901780 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\lighting.h
+
+1774956313 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\cjson.h
+	<stddef.h>
+
+1774957392 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\cjson.c
+	<string.h>
+	<stdio.h>
+	<math.h>
+	<stdlib.h>
+	<limits.h>
+	<ctype.h>
+	<float.h>
+	<locale.h>
+	"cJSON.h"
+
+1774956313 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\cjson.h
+	<stddef.h>
+
