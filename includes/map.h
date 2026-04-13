@@ -1,35 +1,60 @@
 #ifndef MAP_H
 #define MAP_H
 
-#define MAX_ROAD_POINTS 100
+#define MAX_ROAD_POINTS 200
 #define MAX_OBSTACLES 100
 #define MAX_LAKES 50
 #define MAX_RAIN_ZONES 50
 #define NUM_RAIN 1000
+#define MAX_TREES 200
+#define MAX_CLOUDS 100
 
-// Represents a point on the road (2D: x and z)
 typedef struct {
-    float x;
-    float z;
+    float x, z;
 } RoadPoint;
 
-// Represents a 3D obstacle (box)
 typedef struct {
-    float x, y, z;           // position
-    float width, height, depth; // dimensions
+    float x, y, z;
+    float width, height, depth;
 } Obstacle;
 
-// Represents a lake (flat rectangular surface)
 typedef struct {
-    float x, y, z;     // position
-    float width, depth; // size
+    float x, y, z;
+    float width, depth;
 } Lake;
 
-// Represents a rain zone area
 typedef struct {
-    float x, z;        // center position (2D)
-    float width, depth; // size of the rain area
+    float x, z;
+    float width, depth;
 } RainZone;
+
+typedef struct{
+    float r, g, b;
+}Color3;
+
+typedef struct{
+    float width, depth;
+    Color3 color;
+}Ground;
+
+typedef struct{
+    Color3 color;
+}Sky;
+
+typedef struct{
+    float x, y, z;
+    float scale;
+}Cloud;
+
+typedef struct{
+    float x, z;
+    float scale;
+    int type;
+}Tree;
+
+
+void getSkyColor(float* r, float* g, float* b);
+
 
 // Stores all map-related data
 typedef struct {
@@ -50,7 +75,31 @@ typedef struct {
     // Rain zones
     RainZone rainZones[MAX_RAIN_ZONES];
     int rainZoneCount;
+
+    Ground ground;
+
+    Sky sky;
+
+    Cloud clouds[MAX_CLOUDS];
+    int cloudCount;
+
+    Tree trees[MAX_TREES];
+    int treeCount;
+
+
 } MapData;
+
+void generateRandomRoad(int pointCount, float radius);
+
+void generateRandomTrees(int count);
+
+void generateRandomClouds(int count);
+
+void getStartPosition(float* x, float* y, float* z);
+
+float getStartAngle();
+
+void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ);
 
 // Initializes map data (clears memory, sets defaults)
 void initMap();

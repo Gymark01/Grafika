@@ -1,6 +1,7 @@
 #include "../includes/cJSON.h"
 #include "../includes/map.h"
 #include "../includes/lighting.h"
+#include "../includes/assets.h"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -124,7 +125,87 @@ int loadMapFromJson(const char* filename)
     // Clear current map before loading new data
     memset(&currentMap, 0, sizeof(MapData));
 
-    // ---------------- ROAD ----------------
+    //----------------GROUND----------------
+    cJSON* ground = cJSON_GetObjectItem(root, "ground");
+    if (ground) {
+        cJSON* width = cJSON_GetObjectItem(ground, "width");
+        cJSON* depth = cJSON_GetObjectItem(ground, "depth");
+        cJSON* color = cJSON_GetObjectItem(ground, "color");
+
+        if (cJSON_IsNumber(width)) currentMap.ground.width = (float)width->valuedouble;
+        if (cJSON_IsNumber(depth)) currentMap.ground.depth = (float)depth->valuedouble;
+
+        if (color) {
+            cJSON* r = cJSON_GetObjectItem(color, "r");
+            cJSON* g = cJSON_GetObjectItem(color, "g");
+            cJSON* b = cJSON_GetObjectItem(color, "b");
+
+            if (cJSON_IsNumber(r)) currentMap.ground.color.r = (float)r->valuedouble;
+            if (cJSON_IsNumber(g)) currentMap.ground.color.g = (float)g->valuedouble;
+            if (cJSON_IsNumber(b)) currentMap.ground.color.b = (float)b->valuedouble;
+        }
+    }
+
+    //----------------SKY----------------
+    cJSON* sky = cJSON_GetObjectItem(root, "sky");
+    if (sky) {
+        cJSON* color = cJSON_GetObjectItem(sky, "color");
+        if (color) {
+            cJSON* r = cJSON_GetObjectItem(color, "r");
+            cJSON* g = cJSON_GetObjectItem(color, "g");
+            cJSON* b = cJSON_GetObjectItem(color, "b");
+
+            if (cJSON_IsNumber(r)) currentMap.sky.color.r = (float)r->valuedouble;
+            if (cJSON_IsNumber(g)) currentMap.sky.color.g = (float)g->valuedouble;
+            if (cJSON_IsNumber(b)) currentMap.sky.color.b = (float)b->valuedouble;
+        }
+    }
+
+    //----------------CLOUDS----------------
+    cJSON* clouds = cJSON_GetObjectItem(root, "clouds");
+    if (cJSON_IsArray(clouds)) {
+        int count = cJSON_GetArraySize(clouds);
+        if (count > MAX_CLOUDS) count = MAX_CLOUDS;
+
+        currentMap.cloudCount = count;
+
+        for (int i = 0; i < count; i++) {
+            cJSON* c = cJSON_GetArrayItem(clouds, i);
+
+            cJSON* x = cJSON_GetObjectItem(c, "x");
+            cJSON* y = cJSON_GetObjectItem(c, "y");
+            cJSON* z = cJSON_GetObjectItem(c, "z");
+            cJSON* s = cJSON_GetObjectItem(c, "scale");
+
+            if (cJSON_IsNumber(x)) currentMap.clouds[i].x = (float)x->valuedouble;
+            if (cJSON_IsNumber(y)) currentMap.clouds[i].y = (float)y->valuedouble;
+            if (cJSON_IsNumber(z)) currentMap.clouds[i].z = (float)z->valuedouble;
+            if (cJSON_IsNumber(s)) currentMap.clouds[i].scale = (float)s->valuedouble;
+        }
+    }
+
+    //----------------TREES----------------
+    cJSON* trees = cJSON_GetObjectItem(root, "trees");
+    if (cJSON_IsArray(trees)) {
+        int count = cJSON_GetArraySize(trees);
+        if (count > MAX_TREES) count = MAX_TREES;
+
+        currentMap.treeCount = count;
+
+        for (int i = 0; i < count; i++) {
+            cJSON* t = cJSON_GetArrayItem(trees, i);
+
+            cJSON* x = cJSON_GetObjectItem(t, "x");
+            cJSON* z = cJSON_GetObjectItem(t, "z");
+            cJSON* scale = cJSON_GetObjectItem(t, "scale");
+
+            if (cJSON_IsNumber(x)) currentMap.trees[i].x = (float)x->valuedouble;
+            if (cJSON_IsNumber(z)) currentMap.trees[i].z = (float)z->valuedouble;
+            if (cJSON_IsNumber(scale)) currentMap.trees[i].scale = (float)scale->valuedouble;
+        }
+    }
+
+   /* // ---------------- ROAD ----------------
     cJSON* road = cJSON_GetObjectItem(root, "road");
     if (road) {
         cJSON* width = cJSON_GetObjectItem(road, "width");
@@ -161,7 +242,7 @@ int loadMapFromJson(const char* filename)
                 }
             }
         }
-    }
+    }*/
 
     // ---------------- OBSTACLES ----------------
     cJSON* obstacles = cJSON_GetObjectItem(root, "obstacles");
@@ -287,6 +368,184 @@ static void drawCube(float w, float h, float d)
     glEnd();
 }
 
+static void renderGround()
+{
+    float r = currentMap.ground.color.r * brightness;
+    float g = currentMap.ground.color.g * brightness;
+    float b = currentMap.ground.color.b * brightness;
+
+    if (r > 1.0f) r = 1.0f;
+    if (g > 1.0f) g = 1.0f;
+    if (b > 1.0f) b = 1.0f;
+
+    glColor3f(r, g, b);
+
+    float hw = currentMap.ground.width / 2.0f;
+    float hd = currentMap.ground.depth / 2.0f;
+
+    glBegin(GL_QUADS);
+    glVertex3f(-hw, -0.01f, -hd);
+    glVertex3f( hw, -0.01f, -hd);
+    glVertex3f( hw, -0.01f,  hd);
+    glVertex3f(-hw, -0.01f,  hd);
+    glEnd();
+}
+
+void getSkyColor(float* r, float* g, float* b)
+{
+    *r = currentMap.sky.color.r;
+    *g = currentMap.sky.color.g;
+    *b = currentMap.sky.color.b;
+}
+
+void generateRandomRoad(int pointCount, float radius)
+{
+    currentMap.pointCount = pointCount;
+    currentMap.closed = 1;
+    currentMap.roadWidth = 10.0f;
+
+    for (int i = 0; i < pointCount; i++) {
+        float angle = ((float)i / pointCount) * 2.0f * 3.1415926f;
+
+        // alap kör
+        float baseX = cosf(angle) * radius;
+        float baseZ = sinf(angle) * radius;
+
+        // random eltérés
+        float offsetX = (rand() % 20 - 10);
+        float offsetZ = (rand() % 20 - 10);
+
+        currentMap.points[i].x = baseX + offsetX;
+        currentMap.points[i].z = baseZ + offsetZ;
+    }
+}
+
+static void renderSingleCloud(Cloud c)
+{
+    glPushMatrix();
+
+    float offset = glutGet(GLUT_ELAPSED_TIME) * 0.0005f;
+    glTranslatef(c.x + offset, c.y, c.z);
+    glScalef(0.01f * c.scale,0.01f * c.scale,0.01f * c.scale);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    renderModel(&cloudModel);
+
+    glPopMatrix();
+}
+
+static void renderClouds()
+{
+    for (int i = 0; i < currentMap.cloudCount; i++){
+        renderSingleCloud(currentMap.clouds[i]);
+    }
+}
+
+void generateRandomClouds(int count)
+{
+    currentMap.cloudCount = count;
+
+    for (int i = 0; i < count; i++) {
+        currentMap.clouds[i].x = rand()%400 - 200;
+        currentMap.clouds[i].z = rand()%400 - 200;
+        currentMap.clouds[i].y = 30 + rand()%30; // magasan
+        currentMap.clouds[i].scale = 1.0f + (rand()%100)/100.0f;
+    }
+}
+
+static void renderSingleTree(Tree t)
+{
+    glPushMatrix();
+    glTranslatef(t.x, 0.0f, t.z);
+    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
+    renderModel(&treeModel1);
+    glPopMatrix();
+}
+
+static void renderSingleTreeShadow(Tree t)
+{
+    glPushMatrix();
+    glTranslatef(t.x, 0.0f, t.z);
+    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
+    renderShadowModel(&treeModel1, 1.0f, 2.0f, 0.7f);
+    glPopMatrix();
+}
+
+static void renderTrees()
+{
+    for (int i = 0; i < currentMap.treeCount; i++){
+        renderSingleTree(currentMap.trees[i]);
+    }
+}
+
+static void renderTreeShadows()
+{
+    for (int i = 0; i < currentMap.treeCount; i++) {
+        renderSingleTreeShadow(currentMap.trees[i]);
+    }
+}
+
+static int isNearRoad(float x, float z)
+{
+    if (currentMap.pointCount < 4) return 0;
+
+    const int samplesPerSegment = 25;
+    float minDist = 999999.0f;
+
+    for (int i = 0; i < currentMap.pointCount; i++) {
+        int i0 = wrapIndex(i - 1, currentMap.pointCount);
+        int i1 = wrapIndex(i,     currentMap.pointCount);
+        int i2 = wrapIndex(i + 1, currentMap.pointCount);
+        int i3 = wrapIndex(i + 2, currentMap.pointCount);
+
+        RoadPoint p0 = currentMap.points[i0];
+        RoadPoint p1 = currentMap.points[i1];
+        RoadPoint p2 = currentMap.points[i2];
+        RoadPoint p3 = currentMap.points[i3];
+
+        for (int s = 0; s <= samplesPerSegment; s++) {
+            float t = (float)s / (float)samplesPerSegment;
+            RoadPoint rp = catmullRomPoint(p0, p1, p2, p3, t);
+
+            float dx = x - rp.x;
+            float dz = z - rp.z;
+            float dist = sqrtf(dx * dx + dz * dz);
+
+            if (dist < minDist) {
+                minDist = dist;
+            }
+        }
+    }
+
+    // út fél szélessége + biztonsági sáv
+    return minDist < (currentMap.roadWidth * 0.5f + 4.0f);
+}
+
+void generateRandomTrees(int count)
+{
+    currentMap.treeCount = 0;
+
+    int attempts = 0;
+    int maxAttempts = count * 50;
+
+    while (currentMap.treeCount < count && attempts < maxAttempts) {
+        attempts++;
+
+        float x = (float)(rand() % 400 - 200);
+        float z = (float)(rand() % 400 - 200);
+
+        if (isNearRoad(x, z)) {
+            continue;
+        }
+
+        currentMap.trees[currentMap.treeCount].x = x;
+        currentMap.trees[currentMap.treeCount].z = z;
+        currentMap.trees[currentMap.treeCount].scale = 0.8f + (float)(rand() % 70) / 100.0f;
+        currentMap.trees[currentMap.treeCount].type = rand() % 3;
+
+        currentMap.treeCount++;
+    }
+}
 // Renders a single obstacle as a red box
 static void renderObstacle(Obstacle o)
 {
@@ -347,7 +606,7 @@ static void renderRainZone(RainZone zone)
 }
 
 // Draws a road segment as a quad between two points
-static void drawRoadSegment(float x1, float z1, float x2, float z2, float width)
+/*static void drawRoadSegment(float x1, float z1, float x2, float z2, float width)
 {
     float dx = x2 - x1;
     float dz = z2 - z1;
@@ -398,8 +657,9 @@ static void drawDashedLine(float x1, float z1, float x2, float z2)
     }
     glEnd();
 }
-
+*/
 // Draws the dashed center line along sampled spline points
+// Draw the dashed center line using sampled road points.
 static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
 {
     if (sampleCount < 2) return;
@@ -427,13 +687,13 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
         float localPos = 0.0f;
 
         while (localPos < segLen) {
-            // Determine how much remains in the current dash/gap section
+            // Remaining length in the current dash or gap block.
             float needed = (draw ? dashLength : gapLength) - accumulated;
             float step = segLen - localPos;
 
             if (step > needed) step = needed;
 
-            // Draw only when in dash mode
+            // Emit vertices only while drawing a dash.
             if (draw) {
                 float sx = samples[i].x + dirx * localPos;
                 float sz = samples[i].z + dirz * localPos;
@@ -447,7 +707,7 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
             localPos += step;
             accumulated += step;
 
-            // Switch between dash and gap
+            // Switch between dash and gap once the current block is completed.
             if (draw && accumulated >= dashLength) {
                 draw = 0;
                 accumulated = 0.0f;
@@ -462,7 +722,152 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
     glEnd();
 }
 
-// Renders the road using Catmull-Rom spline sampling
+// Compute the car spawn position slightly behind the start line.
+void getStartPosition(float* x, float* y, float* z)
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    float backOffset = 2.0f;
+
+    *x = sx - dirX * backOffset;
+    *y = 0.0f;
+    *z = sz - dirZ * backOffset;
+}
+
+// Compute the initial car heading from the start direction.
+float getStartAngle()
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    return atan2f(-dirX, -dirZ) * 180.0f / 3.1415926535f;
+}
+
+// Render the checkerboard start line across the road width.
+void renderCheckeredStartLine()
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    // Perpendicular vector to the road direction.
+    float nx = -dirZ;
+    float nz = dirX;
+
+    float roadHalf = currentMap.roadWidth / 2.0f;
+    float lineDepth = 2.0f;
+    float tile = 1.0f;
+
+    int cols = (int)(currentMap.roadWidth / tile);
+    int rows = (int)(lineDepth / tile);
+
+    float startLeftX = sx + nx * roadHalf;
+    float startLeftZ = sz + nz * roadHalf;
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            if ((r + c) % 2 == 0) {
+                float white = 1.0f * brightness;
+                if (white > 1.0f) white = 1.0f;
+                glColor3f(white, white, white);
+            } else {
+                glColor3f(0.0f, 0.0f, 0.0f);
+            }
+
+            float ox = startLeftX - nx * (c * tile);
+            float oz = startLeftZ - nz * (c * tile);
+
+            float px = ox + dirX * (r * tile);
+            float pz = oz + dirZ * (r * tile);
+
+            glBegin(GL_QUADS);
+            glVertex3f(px, 0.03f, pz);
+            glVertex3f(px - nx * tile, 0.03f, pz - nz * tile);
+            glVertex3f(px - nx * tile + dirX * tile, 0.03f, pz - nz * tile + dirZ * tile);
+            glVertex3f(px + dirX * tile, 0.03f, pz + dirZ * tile);
+            glEnd();
+        }
+    }
+}
+
+// Render the two poles at the sides of the start line.
+void renderStartPoles()
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    // Perpendicular vector to the road direction.
+    float nx = -dirZ;
+    float nz = dirX;
+
+    float halfWidth = currentMap.roadWidth / 2.0f + 0.5f;
+
+    float leftX  = sx + nx * halfWidth;
+    float leftZ  = sz + nz * halfWidth;
+    float rightX = sx - nx * halfWidth;
+    float rightZ = sz - nz * halfWidth;
+
+    float c = 0.8f * brightness;
+    if (c > 1.0f) c = 1.0f;
+    glColor3f(c, c, c);
+
+    glPushMatrix();
+    glTranslatef(leftX, 1.5f, leftZ);
+    glScalef(0.2f, 3.0f, 0.2f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(rightX, 1.5f, rightZ);
+    glScalef(0.2f, 3.0f, 0.2f);
+    glutSolidCube(1.0f);
+    glPopMatrix();
+}
+
+// Compute start position and forward direction from the first road segment.
+void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ)
+{
+    if (currentMap.pointCount < 4) {
+        *sx = 0.0f;
+        *sz = 0.0f;
+        *dirX = 0.0f;
+        *dirZ = -1.0f;
+        return;
+    }
+
+    int i0 = wrapIndex(-1, currentMap.pointCount);
+    int i1 = wrapIndex(0,  currentMap.pointCount);
+    int i2 = wrapIndex(1,  currentMap.pointCount);
+    int i3 = wrapIndex(2,  currentMap.pointCount);
+
+    RoadPoint p0 = currentMap.points[i0];
+    RoadPoint p1 = currentMap.points[i1];
+    RoadPoint p2 = currentMap.points[i2];
+    RoadPoint p3 = currentMap.points[i3];
+
+    RoadPoint a = catmullRomPoint(p0, p1, p2, p3, 0.0f);
+    RoadPoint b = catmullRomPoint(p0, p1, p2, p3, 0.03f);
+
+    float dx = b.x - a.x;
+    float dz = b.z - a.z;
+    float len = sqrtf(dx * dx + dz * dz);
+
+    if (len <= 0.0001f) {
+        dx = 0.0f;
+        dz = -1.0f;
+        len = 1.0f;
+    }
+
+    dx /= len;
+    dz /= len;
+
+    *sx = a.x;
+    *sz = a.z;
+    *dirX = dx;
+    *dirZ = dz;
+}
+
+// Render the road surface from sampled spline points.
 static void renderRoad()
 {
     if (currentMap.pointCount < 4) return;
@@ -470,7 +875,7 @@ static void renderRoad()
     RoadPoint samples[MAX_SPLINE_SAMPLES];
     int sampleCount = 0;
 
-    // 1. Sample the spline along all road control points
+    // Sample the Catmull-Rom spline along the whole loop.
     for (int i = 0; i < currentMap.pointCount; i++) {
         int i0 = wrapIndex(i - 1, currentMap.pointCount);
         int i1 = wrapIndex(i,     currentMap.pointCount);
@@ -492,12 +897,10 @@ static void renderRoad()
 
     if (sampleCount < 2) return;
 
-    // 2. Set road color
     float c = 0.2f * brightness;
     if (c > 1.0f) c = 1.0f;
     glColor3f(c, c, c);
 
-    // 3. Draw the continuous road surface as a triangle strip
     float halfWidth = currentMap.roadWidth / 2.0f;
 
     glBegin(GL_TRIANGLE_STRIP);
@@ -512,15 +915,13 @@ static void renderRoad()
 
         if (len <= 0.0001f) continue;
 
-        // Compute perpendicular normal to the road center line
+        // Perpendicular vector used to build left and right road edges.
         float nx = -dz / len;
         float nz =  dx / len;
 
-        // Left edge of road
         float lx = samples[i].x + nx * halfWidth;
         float lz = samples[i].z + nz * halfWidth;
 
-        // Right edge of road
         float rx = samples[i].x - nx * halfWidth;
         float rz = samples[i].z - nz * halfWidth;
 
@@ -528,7 +929,7 @@ static void renderRoad()
         glVertex3f(rx, 0.0f, rz);
     }
 
-    // Close the strip by repeating the first pair of vertices
+    // Repeat the first edge pair to close the strip.
     {
         int i = 0;
         int prev = (i - 1 + sampleCount) % sampleCount;
@@ -555,14 +956,17 @@ static void renderRoad()
 
     glEnd();
 
-    // 4. Draw dashed center line on top of the road
     drawCenterDashedLine(samples, sampleCount);
 }
 
-// Renders the whole map: road, obstacles, lakes, and rain zones
+// Render the full map and all map-related objects.
 void renderMap()
 {
+    renderGround();
+    renderClouds();
     renderRoad();
+    renderCheckeredStartLine();
+    renderStartPoles();
 
     for (int i = 0; i < currentMap.obstacleCount; i++) {
         renderObstacle(currentMap.obstacles[i]);
@@ -575,4 +979,7 @@ void renderMap()
     for (int i = 0; i < currentMap.rainZoneCount; i++) {
         renderRainZone(currentMap.rainZones[i]);
     }
+
+    renderTreeShadows();
+    renderTrees();
 }

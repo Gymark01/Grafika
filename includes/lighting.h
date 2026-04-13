@@ -3,4 +3,4 @@
 
 extern float brightness;
 
-#endif // LIGHTING_H
+#endif

@@ -2,6 +2,7 @@
 #include "../includes/camera.h"
 #include "../includes/car.h"
 #include "../includes/lighting.h"
+#include "../includes/assets.h"
 
 #include <GL/freeglut.h>
 
@@ -88,29 +89,30 @@ void renderMenuOverlay() {
         drawText(190, 360, "This is a car game in OpenGL + FreeGLUT.");
         drawText(190, 320, "The purpose of this game to me not to");
         drawText(190, 280, "fail in graphic design class.");
-        drawText(190, 240, "For others to enjoy this silly game.");
+        drawText(190, 240, "For others to enjoy this game.");
         drawText(310, 170, "Esc - Back to menu");
     }
     // Controls screen
     else if (menuState == MENU_CONTROLS) {
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(360, 450, "CONTORLS");
-        drawText(250, 360, "W - accelerate");
-        drawText(250, 320, "S - break / reverse");
-        drawText(250, 280, "A - left turn");
-        drawText(250, 240, "D - right turn");
-        drawText(250, 200, "0 / 1 - brightness settings");
-        drawText(300, 160, "Esc - Back to menu");
+        drawText(250, 370, "W - accelerate");
+        drawText(250, 330, "S - break / reverse");
+        drawText(250, 290, "A - left turn");
+        drawText(250, 250, "D - right turn");
+        drawText(250, 210, "SPACE - nitro");
+        drawText(250, 170, "0 / 1 - brightness settings");
+        drawText(300, 120, "Esc - Back to menu");
     }
     // Credits screen
     else if (menuState == MENU_CREDITS) {
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(360, 450, "CREDITS");
-        drawText(240, 340, "Who made this wonder:");
-        drawText(240, 290, "Team member 1 - Gyongyosi Mark - D9RKIN");
-        drawText(240, 250, "Team member 2 - Marlboro Touch");
-        drawText(240, 210, "Team member 3 - Jameson Crested");
-        drawText(320, 160, "Esc - Back to menu");
+        drawText(240, 360, "Who made this wonder:");
+        drawText(240, 320, "Team member 1 - Gyongyosi Mark - D9RKIN");
+        drawText(240, 280, "Team member 2 - Marlboro Touch");
+        drawText(240, 240, "Team member 3 - Jameson Crested");
+        drawText(320, 170, "Esc - Back to menu");
     }
 
     // Re-enable depth testing for 3D rendering
@@ -148,6 +150,7 @@ void handleMenuSelection() {
 
 // Handles special keys like arrow keys
 void specialKeys(int key, int x, int y) {
+
     // Only allow navigation in the visible main menu
     if (!showMenu || menuState != MENU_MAIN) {
         return;
@@ -165,7 +168,7 @@ void specialKeys(int key, int x, int y) {
 }
 
 // Keyboard state flags for movement
-bool keyW = false, keyS = false, keyA = false, keyD = false;
+bool keyW = false, keyS = false, keyA = false, keyD = false, keySpace = false;
 
 // Global brightness level
 float brightness = 1.0f;
@@ -206,6 +209,8 @@ void keyboard(unsigned char key, int x, int y){
     if(key == 's' || key == 'S') keyS = true;
     if(key == 'a' || key == 'A') keyA = true;
     if(key == 'd' || key == 'D') keyD = true;
+    if(key == ' ') keySpace = true;
+
 
     // Brightness controls
     if(key == '0'){
@@ -224,19 +229,28 @@ void keyboardUp(unsigned char key, int x, int y){
     if(key == 's' || key == 'S') keyS = false;
     if(key == 'a' || key == 'A') keyA = false;
     if(key == 'd' || key == 'D') keyD = false;
+    if(key == ' ' ) keySpace = false;
+}
+
+void specialKeyUp(int key, int x, int y)
+{
+    keySpace = false;
 }
 
 // Main render function
 void display() {
-    // Clear color and depth buffers
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    float skyR, skyG, skyB;
+    getSkyColor(&skyR, &skyG, &skyB);
 
     // Set background color based on brightness
-    glClearColor(0.05f * brightness, 0.05f * brightness, 0.08f * brightness, 1.0f * brightness);
+    glClearColor(skyR * brightness, skyG * brightness, skyB * brightness, 1.0f);
+        // Clear color and depth buffers
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Update car only when menu is not shown
     if(!showMenu){
-        updateCar(&car, keyW, keyS, keyA, keyD);
+        updateCar(&car, keyW, keyS, keyA, keyD, keySpace);
     }
 
     // Update and apply camera view based on car position and angle
@@ -245,6 +259,7 @@ void display() {
 
     // Render world objects
     renderMap();
+    renderCarShadow(&car);
     renderCar(&car);
 
     // Render menu overlay if enabled
@@ -252,35 +267,8 @@ void display() {
         renderMenuOverlay();
     }
 
-    // Draw a green forward-direction debug line in front of the car
-    float rad = car.angle * 3.1415926535f / 180.0f;
-    float forwardX = -sinf(rad);
-    float forwardZ = -cosf(rad);
-
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glBegin(GL_LINES);
-    glVertex3f(car.position.x, car.position.y + 0.5f, car.position.z);
-    glVertex3f(car.position.x + forwardX * 3.0f,
-               car.position.y + 0.5f,
-               car.position.z + forwardZ * 3.0f);
-    glEnd();
-
     // Swap front and back buffers
     glutSwapBuffers();
-
-    // This same debug line is drawn again here
-    // Note: this second copy is redundant because it happens after buffer swap
-    rad = car.angle * 3.1415926535f / 180.0f;
-    forwardX = -sinf(rad);
-    forwardZ = -cosf(rad);
-
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glBegin(GL_LINES);
-    glVertex3f(car.position.x, car.position.y + 0.5f, car.position.z);
-    glVertex3f(car.position.x + forwardX * 3.0f,
-               car.position.y + 0.5f,
-               car.position.z + forwardZ * 3.0f);
-    glEnd();
 }
 
 // Handles window resize events
@@ -304,16 +292,41 @@ void init() {
     glEnable(GL_POINT_SMOOTH);
     glPointSize(3);
 
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
     // Initialize map and load a JSON map file
     initMap();
     loadMapFromJson("maps/map1.json");
+
+    loadAssets();
+    printf("tree1 vertices: %d faces: %d\n", treeModel1.vertexCount, treeModel1.faceCount);
+    printf("car vertices: %d faces: %d\n", carModel.vertexCount, carModel.faceCount);
+    printf("cloud vertices: %d faces: %d\n", cloudModel.vertexCount, cloudModel.faceCount);
+
+
+    // RANDOM generators
+    generateRandomRoad(40,150.0f);
+    generateRandomTrees(100);
+    generateRandomClouds(20);
 
     // Initialize camera and car
     init_camera(&camera);
     initCar(&car);
 
+    float startX, startY, startZ;
+    float startAngle;
+
+    getStartPosition(&startX, &startY, &startZ);
+    startAngle = getStartAngle();
+
+    setCarSpawn(&car, startX, startY, startZ, startAngle);
+    update_camera(&camera, car.position, car.angle);
+
     // Initial clear color
-    glClearColor(0.2f, 0.6f, 0.9f, 1.0f);
+    glClearColor(0.4f, 0.7f, 1.0f, 1.0f);
 }
 
 // Program entry point
@@ -326,11 +339,13 @@ int main(int argc, char** argv) {
     glutCreateWindow("Need For Weed");
 
     init();
+    atexit(freeAssets);
 
     // Register callback functions
     glutKeyboardFunc(keyboard);
     glutKeyboardUpFunc(keyboardUp);
     glutSpecialFunc(specialKeys);
+    glutSpecialUpFunc(specialKeyUp);
     glutDisplayFunc(display);
     glutIdleFunc(display);
     glutReshapeFunc(reshape);

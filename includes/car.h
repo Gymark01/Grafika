@@ -9,13 +9,14 @@ typedef struct {
     float speed; //forward/backward speed
 } Car;
 
-// init
 void initCar(Car* car);
 
-// update (movement)
-void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD);
+void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace);
 
-// render
 void renderCar(Car* car);
+
+void renderCarShadow(Car* car);
+
+void setCarSpawn(Car* car, float x, float y, float z, float angle);
 
 #endif

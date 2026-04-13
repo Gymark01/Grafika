@@ -1,15 +1,16 @@
 #include "../includes/car.h"
 #include "../includes/lighting.h"
+#include "../includes/assets.h"
 
 #include <GL/freeglut.h>
 
 #include <math.h>
 
 // Car acceleration per update step
-static float acceleration = 0.001f;
+static float acceleration = 0.06f;
 
 // Maximum forward and reverse speed
-static float maxSpeed = 0.015f;
+static float maxSpeed = 2.0f;
 
 // Friction factor applied every frame
 static float friction = 0.98f;
@@ -25,25 +26,30 @@ void initCar(Car* car){
 }
 
 // Updates car movement and rotation based on keyboard input
-void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD)
+void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
 {
+    float boostMultiplier = keySpace ? 1.5f : 1.0f;
+
+    float currentAcceleration = acceleration * boostMultiplier;
+    float currentmaxSpeed = maxSpeed * boostMultiplier;
+
     float turnSpeed = 0.0f;
 
     // Allow turning only when the car is moving fast enough
     // The faster the car moves, the faster it can turn
-    if (fabs(car->speed) > 0.001){
-        turnSpeed = 0.1f * (fabs(car->speed) / maxSpeed);
+    if (fabs(car->speed) > 0.001f){
+        turnSpeed = 6.0f * (fabs(car->speed) / currentmaxSpeed);
     }
 
     // Accelerate forward
-    if (keyW) car->speed += acceleration;
+    if (keyW) car->speed += currentAcceleration;
 
     // Accelerate backward / reverse
-    if (keyS) car->speed -= acceleration;
+    if (keyS) car->speed -= currentAcceleration;
 
     // Clamp speed to allowed range
-    if (car->speed > maxSpeed) car->speed = maxSpeed;
-    if (car->speed < -maxSpeed) car->speed = -maxSpeed;
+    if (car->speed > currentmaxSpeed) car->speed = currentmaxSpeed;
+    if (car->speed < -currentmaxSpeed) car->speed = -currentmaxSpeed;
 
     // Rotate only if the car is actually moving
     if (fabs(car->speed) > 0.001f){
@@ -56,11 +62,12 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD)
     if (car->angle < 0.0f)    car->angle += 360.0f;
 
     // Apply friction to gradually slow the car down
-    car->speed *= friction;
+    if (!keyW && !keyS) {
+        car->speed *= friction;
 
-    // Snap very small speed values to zero
-    if (car->speed > -0.0001f && car->speed < 0.0001f) {
-        car->speed = 0.0f;
+        if (car->speed > -0.0001f && car->speed < 0.0001f) {
+            car->speed = 0.0f;
+        }
     }
 
     // Convert angle to radians for movement calculation
@@ -75,60 +82,47 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD)
     car->position.z += forwardZ * car->speed;
 }
 
-// Renders the car model
-void renderCar(Car* car){
-
+// Render the car model using its current world transform.
+void renderCar(Car* car)
+{
     glPushMatrix();
 
-    // Move and rotate the whole car into world position
     glTranslatef(car->position.x, car->position.y, car->position.z);
+
+    // The imported car model faces the opposite direction by default.
+    glRotatef(180.0f, 0, 1, 0);
     glRotatef(car->angle, 0, 1, 0);
 
-    // Main body of the car
-    glColor3f(1.0f * brightness, 0, 0);
+    glScalef(0.07f, 0.07f, 0.07f);
+
+    // Keep the base color white so the model textures and materials remain unchanged.
+    glColor3f(1.0f, 1.0f, 1.0f);
+    renderModel(&carModel);
+
+    glPopMatrix();
+}
+
+// Render the car shadow using the same transform as the car itself.
+void renderCarShadow(Car* car)
+{
     glPushMatrix();
-    glScalef(1.5f, 0.5f, 3.0f);
-    glutSolidCube(1.0);
-    glPopMatrix();
 
-    // Cabin / upper part of the car
-    glColor3f(0.8f * brightness, 0, 0);
-    glPushMatrix();
-    glTranslatef(0, 0.5f, -0.3f);
-    glScalef(1.2f, 0.5f, 1.5f);
-    glutSolidCube(1.0);
-    glPopMatrix();
+    glTranslatef(car->position.x, car->position.y, car->position.z);
+    glRotatef(180.0f, 0, 1, 0);
+    glRotatef(car->angle, 0, 1, 0);
+    glScalef(0.07f, 0.07f, 0.07f);
 
-    // Left headlight
-    glColor3f(1.0f * brightness, 1.0f * brightness, 0.0f);
-    glPushMatrix();
-    glTranslatef(-0.45f, 0.15f, -1.6f);
-    glScalef(0.25f, 0.2f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-
-    // Right headlight
-    glPushMatrix();
-    glTranslatef(0.45f, 0.15f, -1.6f);
-    glScalef(0.25f, 0.2f, 0.2f);
-    glutSolidCube(1.0f);
-    glPopMatrix();
-
-    // Tires / wheels
-    glColor3f(0.0f, 0.0f, 0.0f);
-
-    float wheelOffsetX = 0.8f;
-    float wheelOffsetZ = 1.2f;
-
-    // Draw 4 wheels using mirrored positions
-    for(int i = -1; i <= 1; i += 2){
-        for(int j = -1; j <= 1; j += 2){
-            glPushMatrix();
-            glTranslatef(i * wheelOffsetX, -0.25f, j * wheelOffsetZ);
-            glutSolidSphere(0.3f, 10, 10);
-            glPopMatrix();
-        }
-    }
+    renderShadowModel(&carModel, 1.0f, 2.0f, 0.7f);
 
     glPopMatrix();
+}
+
+// Set the initial car position and heading at spawn time.
+void setCarSpawn(Car* car, float x, float y, float z, float angle)
+{
+    car->position.x = x;
+    car->position.y = y;
+    car->position.z = z;
+    car->angle = angle;
+    car->speed = 0.0f;
 }

@@ -20,36 +20,33 @@ void init_camera(Camera* camera) {
     camera->vertical = 0.0f;
 
     // Distance from the target
-    camera->distance = 8.0f;
+    camera->distance = 10.0f;
 
     // Initial camera position
     camera->position.x = 0.0f;
-    camera->position.y = 6.0f;
-    camera->position.z = 8.0f;
+    camera->position.y = 4.0f;
+    camera->position.z = 10.0f;
 }
 
 // Updates the camera position so it smoothly follows the car
 void update_camera(Camera* camera, vec3 target, float carAngle) {
-    // Convert the car angle to radians
     float rad = degree_to_radian(carAngle);
 
     float distance = camera->distance;
-    float height = 6.0f;
+    float height = 4.0f;
 
     vec3 desired;
 
-    // Compute the desired camera position behind the target
+    // kamera a kocsi mögött
     desired.x = target.x + sinf(rad) * distance;
     desired.z = target.z + cosf(rad) * distance;
     desired.y = target.y + height;
 
-    // Smoothly interpolate current camera position toward desired position
     float smooth = 0.1f;
     camera->position.x += (desired.x - camera->position.x) * smooth;
     camera->position.y += (desired.y - camera->position.y) * smooth;
     camera->position.z += (desired.z - camera->position.z) * smooth;
 }
-
 // Sets the OpenGL view matrix using the current camera position
 void set_view(Camera* camera, vec3 target) {
     glMatrixMode(GL_MODELVIEW);
@@ -57,7 +54,7 @@ void set_view(Camera* camera, vec3 target) {
 
     // Position the camera and make it look at the target
     gluLookAt(camera->position.x, camera->position.y, camera->position.z,
-              target.x, target.y, target.z,
+              target.x, target.y + 1.0f, target.z,
               0.0, 1.0, 0.0);
 }
 
