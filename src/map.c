@@ -19,18 +19,13 @@
 static MapData currentMap;
 static float rain[NUM_RAIN][3];
 
-// Catmull-Rom spline interpolation between 4 points
-// p0, p1, p2, p3: control points
-// t: parameter in range [0,1] that determines the interpolated position
 static RoadPoint catmullRomPoint(RoadPoint p0, RoadPoint p1, RoadPoint p2, RoadPoint p3, float t)
 {
     RoadPoint result;
 
-    // Precompute powers of t
     float t2 = t * t;
     float t3 = t2 * t;
 
-    // Interpolate X coordinate
     result.x = 0.5f * (
         (2.0f * p1.x) +
         (-p0.x + p2.x) * t +
@@ -38,7 +33,6 @@ static RoadPoint catmullRomPoint(RoadPoint p0, RoadPoint p1, RoadPoint p2, RoadP
         (-p0.x + 3.0f * p1.x - 3.0f * p2.x + p3.x) * t3
     );
 
-    // Interpolate Z coordinate
     result.z = 0.5f * (
         (2.0f * p1.z) +
         (-p0.z + p2.z) * t +
@@ -49,8 +43,6 @@ static RoadPoint catmullRomPoint(RoadPoint p0, RoadPoint p1, RoadPoint p2, RoadP
     return result;
 }
 
-// Wraps an index so it stays within the range [0, count-1]
-// For circular paths or looping roads
 static int wrapIndex(int i, int count)
 {
     while (i < 0) i += count;
@@ -58,8 +50,6 @@ static int wrapIndex(int i, int count)
     return i;
 }
 
-// Reads the full content of a file into memory
-// Returns a null-terminated string that must be freed by the caller
 static char* readFile(const char* filename)
 {
     FILE* file = fopen(filename, "rb");
@@ -68,19 +58,16 @@ static char* readFile(const char* filename)
         return NULL;
     }
 
-    // Determine file size
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     rewind(file);
 
-    // Allocate memory for file content + null terminator
     char* data = (char*)malloc(size + 1);
     if (!data) {
         fclose(file);
         return NULL;
     }
 
-    // Read file into buffer
     fread(data, 1, size, file);
     data[size] = '\0';
 
@@ -88,7 +75,6 @@ static char* readFile(const char* filename)
     return data;
 }
 
-// Initializes rain particle positions randomly
 static void initRain()
 {
     for (int i = 0; i < NUM_RAIN; i++) {
@@ -98,15 +84,12 @@ static void initRain()
     }
 }
 
-// Initializes the map system
 void initMap()
 {
     memset(&currentMap, 0, sizeof(MapData));
     initRain();
 }
 
-// Loads map data from a JSON file
-// Returns 1 on success, 0 on failure
 int loadMapFromJson(const char* filename)
 {
     char* text = readFile(filename);
@@ -114,7 +97,6 @@ int loadMapFromJson(const char* filename)
         return 0;
     }
 
-    // Parse JSON text
     cJSON* root = cJSON_Parse(text);
     if (!root) {
         printf("JSON parse error: %s\n", cJSON_GetErrorPtr());
@@ -122,10 +104,8 @@ int loadMapFromJson(const char* filename)
         return 0;
     }
 
-    // Clear current map before loading new data
     memset(&currentMap, 0, sizeof(MapData));
 
-    //----------------GROUND----------------
     cJSON* ground = cJSON_GetObjectItem(root, "ground");
     if (ground) {
         cJSON* width = cJSON_GetObjectItem(ground, "width");
@@ -146,7 +126,6 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-    //----------------SKY----------------
     cJSON* sky = cJSON_GetObjectItem(root, "sky");
     if (sky) {
         cJSON* color = cJSON_GetObjectItem(sky, "color");
@@ -161,7 +140,6 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-    //----------------CLOUDS----------------
     cJSON* clouds = cJSON_GetObjectItem(root, "clouds");
     if (cJSON_IsArray(clouds)) {
         int count = cJSON_GetArraySize(clouds);
@@ -184,7 +162,6 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-    //----------------TREES----------------
     cJSON* trees = cJSON_GetObjectItem(root, "trees");
     if (cJSON_IsArray(trees)) {
         int count = cJSON_GetArraySize(trees);
@@ -205,46 +182,6 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-   /* // ---------------- ROAD ----------------
-    cJSON* road = cJSON_GetObjectItem(root, "road");
-    if (road) {
-        cJSON* width = cJSON_GetObjectItem(road, "width");
-        cJSON* closed = cJSON_GetObjectItem(road, "closed");
-        cJSON* points = cJSON_GetObjectItem(road, "points");
-
-        // Load road width
-        if (cJSON_IsNumber(width)) {
-            currentMap.roadWidth = (float)width->valuedouble;
-        }
-
-        // Load whether the road is closed/looping
-        if (cJSON_IsBool(closed)) {
-            currentMap.closed = cJSON_IsTrue(closed);
-        }
-
-        // Load road control points
-        if (cJSON_IsArray(points)) {
-            int count = cJSON_GetArraySize(points);
-            if (count > MAX_ROAD_POINTS) {
-                count = MAX_ROAD_POINTS;
-            }
-
-            currentMap.pointCount = count;
-
-            for (int i = 0; i < count; i++) {
-                cJSON* p = cJSON_GetArrayItem(points, i);
-                cJSON* x = cJSON_GetObjectItem(p, "x");
-                cJSON* z = cJSON_GetObjectItem(p, "z");
-
-                if (cJSON_IsNumber(x) && cJSON_IsNumber(z)) {
-                    currentMap.points[i].x = (float)x->valuedouble;
-                    currentMap.points[i].z = (float)z->valuedouble;
-                }
-            }
-        }
-    }*/
-
-    // ---------------- OBSTACLES ----------------
     cJSON* obstacles = cJSON_GetObjectItem(root, "obstacles");
     if (cJSON_IsArray(obstacles)) {
         int count = cJSON_GetArraySize(obstacles);
@@ -273,7 +210,6 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-    // ---------------- LAKES ----------------
     cJSON* lakes = cJSON_GetObjectItem(root, "lakes");
     if (cJSON_IsArray(lakes)) {
         int count = cJSON_GetArraySize(lakes);
@@ -300,7 +236,6 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-    // ---------------- RAIN ZONES ----------------
     cJSON* rainZones = cJSON_GetObjectItem(root, "rainZones");
     if (cJSON_IsArray(rainZones)) {
         int count = cJSON_GetArraySize(rainZones);
@@ -325,11 +260,9 @@ int loadMapFromJson(const char* filename)
         }
     }
 
-    // Free JSON resources
     cJSON_Delete(root);
     free(text);
 
-    // Print summary
     printf("Map successfully loaded: %s\n", filename);
     printf("Road points: %d\n", currentMap.pointCount);
     printf("Obstacles: %d\n", currentMap.obstacleCount);
@@ -339,7 +272,6 @@ int loadMapFromJson(const char* filename)
     return 1;
 }
 
-// Draws a cube centered at the origin with the given dimensions
 static void drawCube(float w, float h, float d)
 {
     float x = w / 2.0f;
@@ -347,24 +279,25 @@ static void drawCube(float w, float h, float d)
     float z = d / 2.0f;
 
     glBegin(GL_QUADS);
-    // Front face
+
     glVertex3f(-x, -y,  z); glVertex3f( x, -y,  z);
     glVertex3f( x,  y,  z); glVertex3f(-x,  y,  z);
-    // Back face
+
     glVertex3f(-x, -y, -z); glVertex3f( x, -y, -z);
     glVertex3f( x,  y, -z); glVertex3f(-x,  y, -z);
-    // Left face
+
     glVertex3f(-x, -y, -z); glVertex3f(-x, -y,  z);
     glVertex3f(-x,  y,  z); glVertex3f(-x,  y, -z);
-    // Right face
+
     glVertex3f( x, -y, -z); glVertex3f( x, -y,  z);
     glVertex3f( x,  y,  z); glVertex3f( x,  y, -z);
-    // Top face
+
     glVertex3f(-x,  y, -z); glVertex3f( x,  y, -z);
     glVertex3f( x,  y,  z); glVertex3f(-x,  y,  z);
-    // Bottom face
+
     glVertex3f(-x, -y, -z); glVertex3f( x, -y, -z);
     glVertex3f( x, -y,  z); glVertex3f(-x, -y,  z);
+
     glEnd();
 }
 
@@ -407,11 +340,9 @@ void generateRandomRoad(int pointCount, float radius)
     for (int i = 0; i < pointCount; i++) {
         float angle = ((float)i / pointCount) * 2.0f * 3.1415926f;
 
-        // alap kör
         float baseX = cosf(angle) * radius;
         float baseZ = sinf(angle) * radius;
 
-        // random eltérés
         float offsetX = (rand() % 20 - 10);
         float offsetZ = (rand() % 20 - 10);
 
@@ -436,7 +367,8 @@ static void renderSingleCloud(Cloud c)
 
 static void renderClouds()
 {
-    for (int i = 0; i < currentMap.cloudCount; i++){
+    for (int i = 0; i < currentMap.cloudCount; i++)
+    {
         renderSingleCloud(currentMap.clouds[i]);
     }
 }
@@ -448,7 +380,7 @@ void generateRandomClouds(int count)
     for (int i = 0; i < count; i++) {
         currentMap.clouds[i].x = rand()%400 - 200;
         currentMap.clouds[i].z = rand()%400 - 200;
-        currentMap.clouds[i].y = 30 + rand()%30; // magasan
+        currentMap.clouds[i].y = 30 + rand()%30;
         currentMap.clouds[i].scale = 1.0f + (rand()%100)/100.0f;
     }
 }
@@ -517,7 +449,6 @@ static int isNearRoad(float x, float z)
         }
     }
 
-    // út fél szélessége + biztonsági sáv
     return minDist < (currentMap.roadWidth * 0.5f + 4.0f);
 }
 
@@ -546,7 +477,7 @@ void generateRandomTrees(int count)
         currentMap.treeCount++;
     }
 }
-// Renders a single obstacle as a red box
+
 static void renderObstacle(Obstacle o)
 {
     float r = 1.0f * brightness;
@@ -554,13 +485,12 @@ static void renderObstacle(Obstacle o)
 
     glColor3f(r, 0.0f, 0.0f);
     glPushMatrix();
-    // Move cube so it sits on the ground
+
     glTranslatef(o.x, o.y + o.height / 2.0f, o.z);
     drawCube(o.width, o.height, o.depth);
     glPopMatrix();
 }
 
-// Renders a lake as a flat blue rectangle
 static void renderLake(Lake l)
 {
     float b = 1.0f * brightness;
@@ -580,24 +510,21 @@ static void renderLake(Lake l)
     glPopMatrix();
 }
 
-// Renders a rain zone using falling point particles
 static void renderRainZone(RainZone zone)
 {
     glColor3f(1.0f, 1.0f, 1.0f);
 
     glBegin(GL_POINTS);
     for (int i = 0; i < NUM_RAIN; i++) {
-        // Generate random X and Z positions inside the rain zone
+
         float x = zone.x + ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone.width;
         float z = zone.z + ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone.depth;
         float y = rain[i][1];
 
         glVertex3f(x, y, z);
 
-        // Move raindrop downward
         rain[i][1] -= 0.2f;
 
-        // Reset raindrop if it falls below the ground
         if (rain[i][1] < 0.0f) {
             rain[i][1] = (float)(rand() % 20 + 5);
         }
@@ -605,61 +532,6 @@ static void renderRainZone(RainZone zone)
     glEnd();
 }
 
-// Draws a road segment as a quad between two points
-/*static void drawRoadSegment(float x1, float z1, float x2, float z2, float width)
-{
-    float dx = x2 - x1;
-    float dz = z2 - z1;
-    float len = sqrtf(dx * dx + dz * dz);
-
-    if (len <= 0.0001f) return;
-
-    // Compute perpendicular vector
-    float nx = -dz / len;
-    float nz =  dx / len;
-
-    float hw = width / 2.0f;
-
-    glBegin(GL_QUADS);
-    glVertex3f(x1 + nx * hw, 0.0f, z1 + nz * hw);
-    glVertex3f(x1 - nx * hw, 0.0f, z1 - nz * hw);
-    glVertex3f(x2 - nx * hw, 0.0f, z2 - nz * hw);
-    glVertex3f(x2 + nx * hw, 0.0f, z2 + nz * hw);
-    glEnd();
-}
-
-// Draws a dashed line between two points
-static void drawDashedLine(float x1, float z1, float x2, float z2)
-{
-    float dx = x2 - x1;
-    float dz = z2 - z1;
-    float len = sqrtf(dx * dx + dz * dz);
-
-    if (len <= 0.0001f) return;
-
-    float dirx = dx / len;
-    float dirz = dz / len;
-
-    float step = 2.0f;
-    float dash = 1.0f;
-
-    glColor3f(1.0f, 1.0f, 1.0f);
-    glBegin(GL_LINES);
-    for (float i = 0.0f; i < len; i += step) {
-        float sx = x1 + dirx * i;
-        float sz = z1 + dirz * i;
-
-        float ex = x1 + dirx * (i + dash);
-        float ez = z1 + dirz * (i + dash);
-
-        glVertex3f(sx, 0.02f, sz);
-        glVertex3f(ex, 0.02f, ez);
-    }
-    glEnd();
-}
-*/
-// Draws the dashed center line along sampled spline points
-// Draw the dashed center line using sampled road points.
 static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
 {
     if (sampleCount < 2) return;
@@ -687,13 +559,12 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
         float localPos = 0.0f;
 
         while (localPos < segLen) {
-            // Remaining length in the current dash or gap block.
+
             float needed = (draw ? dashLength : gapLength) - accumulated;
             float step = segLen - localPos;
 
             if (step > needed) step = needed;
 
-            // Emit vertices only while drawing a dash.
             if (draw) {
                 float sx = samples[i].x + dirx * localPos;
                 float sz = samples[i].z + dirz * localPos;
@@ -707,7 +578,6 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
             localPos += step;
             accumulated += step;
 
-            // Switch between dash and gap once the current block is completed.
             if (draw && accumulated >= dashLength) {
                 draw = 0;
                 accumulated = 0.0f;
@@ -722,7 +592,6 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
     glEnd();
 }
 
-// Compute the car spawn position slightly behind the start line.
 void getStartPosition(float* x, float* y, float* z)
 {
     float sx, sz, dirX, dirZ;
@@ -735,7 +604,6 @@ void getStartPosition(float* x, float* y, float* z)
     *z = sz - dirZ * backOffset;
 }
 
-// Compute the initial car heading from the start direction.
 float getStartAngle()
 {
     float sx, sz, dirX, dirZ;
@@ -744,13 +612,11 @@ float getStartAngle()
     return atan2f(-dirX, -dirZ) * 180.0f / 3.1415926535f;
 }
 
-// Render the checkerboard start line across the road width.
 void renderCheckeredStartLine()
 {
     float sx, sz, dirX, dirZ;
     getStartTransform(&sx, &sz, &dirX, &dirZ);
 
-    // Perpendicular vector to the road direction.
     float nx = -dirZ;
     float nz = dirX;
 
@@ -790,13 +656,11 @@ void renderCheckeredStartLine()
     }
 }
 
-// Render the two poles at the sides of the start line.
 void renderStartPoles()
 {
     float sx, sz, dirX, dirZ;
     getStartTransform(&sx, &sz, &dirX, &dirZ);
 
-    // Perpendicular vector to the road direction.
     float nx = -dirZ;
     float nz = dirX;
 
@@ -824,7 +688,6 @@ void renderStartPoles()
     glPopMatrix();
 }
 
-// Compute start position and forward direction from the first road segment.
 void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ)
 {
     if (currentMap.pointCount < 4) {
@@ -867,7 +730,6 @@ void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ)
     *dirZ = dz;
 }
 
-// Render the road surface from sampled spline points.
 static void renderRoad()
 {
     if (currentMap.pointCount < 4) return;
@@ -875,7 +737,6 @@ static void renderRoad()
     RoadPoint samples[MAX_SPLINE_SAMPLES];
     int sampleCount = 0;
 
-    // Sample the Catmull-Rom spline along the whole loop.
     for (int i = 0; i < currentMap.pointCount; i++) {
         int i0 = wrapIndex(i - 1, currentMap.pointCount);
         int i1 = wrapIndex(i,     currentMap.pointCount);
@@ -915,7 +776,6 @@ static void renderRoad()
 
         if (len <= 0.0001f) continue;
 
-        // Perpendicular vector used to build left and right road edges.
         float nx = -dz / len;
         float nz =  dx / len;
 
@@ -929,37 +789,35 @@ static void renderRoad()
         glVertex3f(rx, 0.0f, rz);
     }
 
-    // Repeat the first edge pair to close the strip.
-    {
-        int i = 0;
-        int prev = (i - 1 + sampleCount) % sampleCount;
-        int next = (i + 1) % sampleCount;
 
-        float dx = samples[next].x - samples[prev].x;
-        float dz = samples[next].z - samples[prev].z;
-        float len = sqrtf(dx * dx + dz * dz);
+    int i = 0;
+    int prev = (i - 1 + sampleCount) % sampleCount;
+    int next = (i + 1) % sampleCount;
 
-        if (len > 0.0001f) {
-            float nx = -dz / len;
-            float nz =  dx / len;
+    float dx = samples[next].x - samples[prev].x;
+    float dz = samples[next].z - samples[prev].z;
+    float len = sqrtf(dx * dx + dz * dz);
 
-            float lx = samples[i].x + nx * halfWidth;
-            float lz = samples[i].z + nz * halfWidth;
+    if (len > 0.0001f) {
+        float nx = -dz / len;
+        float nz =  dx / len;
 
-            float rx = samples[i].x - nx * halfWidth;
-            float rz = samples[i].z - nz * halfWidth;
+        float lx = samples[i].x + nx * halfWidth;
+        float lz = samples[i].z + nz * halfWidth;
 
-            glVertex3f(lx, 0.0f, lz);
-            glVertex3f(rx, 0.0f, rz);
-        }
+        float rx = samples[i].x - nx * halfWidth;
+        float rz = samples[i].z - nz * halfWidth;
+
+        glVertex3f(lx, 0.0f, lz);
+        glVertex3f(rx, 0.0f, rz);
     }
+
 
     glEnd();
 
     drawCenterDashedLine(samples, sampleCount);
 }
 
-// Render the full map and all map-related objects.
 void renderMap()
 {
     renderGround();

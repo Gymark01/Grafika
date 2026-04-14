@@ -9,7 +9,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../includes/stb_image.h"
 
-// Extract the directory part from a file path.
 static void getDirectoryFromPath(const char* path, char* outDir)
 {
     strcpy(outDir, path);
@@ -25,13 +24,11 @@ static void getDirectoryFromPath(const char* path, char* outDir)
     }
 }
 
-// Build a full path from directory + filename.
 static void buildPath(const char* dir, const char* file, char* outPath)
 {
     sprintf(outPath, "%s%s", dir, file);
 }
 
-// Load a texture image into OpenGL and return its texture ID.
 static GLuint loadTexture(const char* filename)
 {
     int width, height, channels;
@@ -65,7 +62,6 @@ static GLuint loadTexture(const char* filename)
     return textureID;
 }
 
-// Find a material index by name inside the loaded model.
 static int findMaterialIndex(const Model* model, const char* name)
 {
     for (int i = 0; i < model->materialCount; i++) {
@@ -76,11 +72,6 @@ static int findMaterialIndex(const Model* model, const char* name)
     return -1;
 }
 
-// Parse OBJ face tokens such as:
-// 1
-// 1/2
-// 1/2/3
-// 1//3
 static void parseFaceVertexToken(const char* token, int* vIndex, int* vtIndex)
 {
     *vIndex = -1;
@@ -104,13 +95,11 @@ static void parseFaceVertexToken(const char* token, int* vIndex, int* vtIndex)
     }
 }
 
-// Load materials from an MTL file.
-// Supports diffuse color (Kd) and diffuse texture (map_Kd).
 static void loadMTL(const char* mtlPath, Model* model)
 {
     FILE* file = fopen(mtlPath, "r");
     if (!file) {
-        printf("Nem sikerult megnyitni az MTL-t: %s\n", mtlPath);
+        printf("Failed to open the MTL: %s\n", mtlPath);
         return;
     }
 
@@ -192,12 +181,11 @@ static void loadMTL(const char* mtlPath, Model* model)
     fclose(file);
 }
 
-// Load an OBJ model with vertices, texture coordinates, faces, and materials.
 int loadOBJ(const char* filename, Model* model)
 {
     FILE* file = fopen(filename, "r");
     if (!file) {
-        printf("Nem sikerult megnyitni: %s\n", filename);
+        printf("Failed to open: %s\n", filename);
         return 0;
     }
 
@@ -274,7 +262,6 @@ int loadOBJ(const char* filename, Model* model)
 
             char* tok = strtok(buffer, " \t\r\n");
 
-            // Skip the leading "f" token.
             tok = strtok(NULL, " \t\r\n");
 
             while (tok && tokenCount < 32) {
@@ -290,7 +277,6 @@ int loadOBJ(const char* filename, Model* model)
                     parseFaceVertexToken(tokens[i], &vIdx[i], &vtIdx[i]);
                 }
 
-                // Convert polygons with more than 3 vertices into triangles.
                 for (int i = 1; i < tokenCount - 1; i++) {
                     Face face;
                     memset(&face, 0, sizeof(Face));
@@ -328,7 +314,6 @@ int loadOBJ(const char* filename, Model* model)
     return 1;
 }
 
-// Render a model with material color, texture, and brightness applied.
 void renderModel(const Model* model)
 {
     static int printed = 0;
@@ -412,7 +397,6 @@ void renderModel(const Model* model)
     glColor3f(1.0f, 1.0f, 1.0f);
 }
 
-// Render a simple planar shadow projected onto the ground plane.
 void renderShadowModel(const Model* model, float lightX, float lightY, float lightZ)
 {
     if (lightY == 0.0f) {
@@ -476,7 +460,6 @@ void renderShadowModel(const Model* model, float lightX, float lightY, float lig
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-// Release all allocated geometry, material, and texture data.
 void freeModel(Model* model)
 {
     if (model->materials) {

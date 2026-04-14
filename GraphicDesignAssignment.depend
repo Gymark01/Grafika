@@ -1,16 +1,16 @@
 # depslib dependency file v1.0
-1775839057 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\camera.c
+1776169651 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\camera.c
 	"../includes/camera.h"
 	<GL/gl.h>
 	<GL/freeglut.h>
 	<GL/glu.h>
 	<math.h>
 
-1774969349 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\camera.h
+1776157162 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\camera.h
 	"../includes/math3d.h"
 	<stdbool.h>
 
-1775834396 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
+1776169651 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
 	"../includes/map.h"
 	"../includes/camera.h"
 	"../includes/car.h"
@@ -43,9 +43,9 @@
 	<GL/gl.h>
 	<GL/glext.h>
 
-1775839058 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\map.h
+1776166734 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\map.h
 
-1775838906 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\map.c
+1776111119 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\map.c
 	"../includes/cJSON.h"
 	"../includes/map.h"
 	"../includes/lighting.h"
@@ -60,14 +60,14 @@
 
 1774449239 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\math3d.h
 
-1775840014 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\car.c
+1776169651 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\car.c
 	"../includes/car.h"
 	"../includes/lighting.h"
 	"../includes/assets.h"
 	<GL/freeglut.h>
 	<math.h>
 
-1775834002 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\car.h
+1776169651 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\car.h
 	"math3d.h"
 
 1775839611 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\lighting.h
@@ -89,17 +89,17 @@
 1774956313 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\cjson.h
 	<stddef.h>
 
-1775839058 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\assets.c
+1776111119 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\assets.c
 	"../includes/assets.h"
 	<stdio.h>
 
-1776111119 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\assets.h
+1776169651 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\assets.h
 	"../includes/model.h"
 
-1775839693 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\model.h
+1776169651 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\model.h
 	<GL/gl.h>
 
-1776110191 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\model.c
+1776169651 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\model.c
 	"../includes/model.h"
 	"../includes/lighting.h"
 	<GL/gl.h>

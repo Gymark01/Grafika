@@ -8,7 +8,6 @@
 
 #include <stdbool.h>
 
-// Different states of the in-game menu
 typedef enum {
     MENU_MAIN,
     MENU_DESCRIPTION,
@@ -20,8 +19,6 @@ MenuState menuState = MENU_MAIN;
 bool showMenu = false;
 int selectedMenuItem = 0;
 
-
-// Draws text on the screen at the given 2D position
 void drawText(float x, float y, const char* text) {
     glRasterPos2f(x, y);
 
@@ -30,23 +27,19 @@ void drawText(float x, float y, const char* text) {
     }
 }
 
-// Renders the menu as an overlay on top of the scene
 void renderMenuOverlay() {
-    // Switch to projection matrix and set up 2D orthographic view
+
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
     gluOrtho2D(0, 800, 0, 600);
 
-    // Switch to modelview matrix and reset it
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
 
-    // Disable depth testing so menu is always drawn on top
     glDisable(GL_DEPTH_TEST);
 
-    // Draw semi-transparent background panel
     glColor4f(0.0f, 0.0f, 0.0f, 0.8f);
     glBegin(GL_QUADS);
     glVertex2f(150, 100);
@@ -57,7 +50,6 @@ void renderMenuOverlay() {
 
     glColor3f(1.0f, 1.0f, 1.0f);
 
-    // Main menu screen
     if (menuState == MENU_MAIN) {
         drawText(390, 450, "MENU");
 
@@ -68,12 +60,11 @@ void renderMenuOverlay() {
             "4. EXIT"
         };
 
-        // Draw each menu item and highlight the selected one
         for (int i = 0; i < 4; i++) {
             if (i == selectedMenuItem) {
-                glColor3f(1.0f, 1.0f, 0.0f); // yellow highlight
+                glColor3f(1.0f, 1.0f, 0.0f);
             } else {
-                glColor3f(1.0f, 1.0f, 1.0f); // white normal text
+                glColor3f(1.0f, 1.0f, 1.0f);
             }
 
             drawText(280, 380 - i * 60, items[i]);
@@ -82,7 +73,7 @@ void renderMenuOverlay() {
         glColor3f(0.7f, 0.7f, 0.7f);
         drawText(220, 140, "UP/DOWN: Movement   Enter: Enter   Esc: Back");
     }
-    // Description screen
+
     else if (menuState == MENU_DESCRIPTION) {
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(340, 450, "DESCRIPTION");
@@ -92,7 +83,7 @@ void renderMenuOverlay() {
         drawText(190, 240, "For others to enjoy this game.");
         drawText(310, 170, "Esc - Back to menu");
     }
-    // Controls screen
+
     else if (menuState == MENU_CONTROLS) {
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(360, 450, "CONTORLS");
@@ -104,7 +95,7 @@ void renderMenuOverlay() {
         drawText(250, 170, "0 / 1 - brightness settings");
         drawText(300, 120, "Esc - Back to menu");
     }
-    // Credits screen
+
     else if (menuState == MENU_CREDITS) {
         glColor3f(1.0f, 1.0f, 1.0f);
         drawText(360, 450, "CREDITS");
@@ -115,19 +106,16 @@ void renderMenuOverlay() {
         drawText(320, 170, "Esc - Back to menu");
     }
 
-    // Re-enable depth testing for 3D rendering
     glEnable(GL_DEPTH_TEST);
 
-    // Restore previous matrices
     glPopMatrix();
     glMatrixMode(GL_PROJECTION);
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
 }
 
-// Handles what happens when Enter is pressed on a menu item
 void handleMenuSelection() {
-    // Only handle selection in the main menu
+
     if (menuState != MENU_MAIN) {
         return;
     }
@@ -143,50 +131,43 @@ void handleMenuSelection() {
             menuState = MENU_CREDITS;
             break;
         case 3:
-            exit(0); // Exit the application
+            exit(0);
             break;
     }
 }
 
-// Handles special keys like arrow keys
 void specialKeys(int key, int x, int y) {
 
-    // Only allow navigation in the visible main menu
     if (!showMenu || menuState != MENU_MAIN) {
         return;
     }
 
     if (key == GLUT_KEY_UP) {
         selectedMenuItem--;
-        if (selectedMenuItem < 0) selectedMenuItem = 3; // wrap to bottom
+        if (selectedMenuItem < 0) selectedMenuItem = 3;
     }
 
     if (key == GLUT_KEY_DOWN) {
         selectedMenuItem++;
-        if (selectedMenuItem > 3) selectedMenuItem = 0; // wrap to top
+        if (selectedMenuItem > 3) selectedMenuItem = 0;
     }
 }
 
-// Keyboard state flags for movement
 bool keyW = false, keyS = false, keyA = false, keyD = false, keySpace = false;
 
-// Global brightness level
 float brightness = 1.0f;
 
-// Main camera and car objects
 Camera camera;
 Car car;
 
-// Handles key press events
 void keyboard(unsigned char key, int x, int y){
-    if (key == 27){ // ESC
+    if (key == 27){
         if(!showMenu){
-            // Open menu if it is currently hidden
+
             showMenu = true;
             menuState = MENU_MAIN;
         }else{
-            // If already in menu:
-            // close it if in main menu, otherwise go back to main menu
+
             if (menuState == MENU_MAIN){
                 showMenu = false;
             }else {
@@ -196,23 +177,19 @@ void keyboard(unsigned char key, int x, int y){
         return;
     }
 
-    // If menu is open, only Enter is handled
     if(showMenu){
-        if(key == 13){ // Enter
+        if(key == 13){
             handleMenuSelection();
         }
         return;
     }
 
-    // Movement keys
     if(key == 'w' || key == 'W') keyW = true;
     if(key == 's' || key == 'S') keyS = true;
     if(key == 'a' || key == 'A') keyA = true;
     if(key == 'd' || key == 'D') keyD = true;
     if(key == ' ') keySpace = true;
 
-
-    // Brightness controls
     if(key == '0'){
         brightness -= 0.1f;
         if(brightness < 0.2f) brightness = 0.2f;
@@ -223,7 +200,6 @@ void keyboard(unsigned char key, int x, int y){
     }
 }
 
-// Handles key release events
 void keyboardUp(unsigned char key, int x, int y){
     if(key == 'w' || key == 'W') keyW = false;
     if(key == 's' || key == 'S') keyS = false;
@@ -237,48 +213,38 @@ void specialKeyUp(int key, int x, int y)
     keySpace = false;
 }
 
-// Main render function
 void display() {
 
     float skyR, skyG, skyB;
     getSkyColor(&skyR, &skyG, &skyB);
 
-    // Set background color based on brightness
     glClearColor(skyR * brightness, skyG * brightness, skyB * brightness, 1.0f);
-        // Clear color and depth buffers
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Update car only when menu is not shown
     if(!showMenu){
         updateCar(&car, keyW, keyS, keyA, keyD, keySpace);
     }
 
-    // Update and apply camera view based on car position and angle
-    update_camera(&camera, car.position, car.angle);
-    set_view(&camera, car.position);
+    updateCamera(&camera, car.position, car.angle, car.speed);
+    setView(&camera, car.position);
 
-    // Render world objects
     renderMap();
     renderCarShadow(&car);
     renderCar(&car);
 
-    // Render menu overlay if enabled
     if(showMenu){
         renderMenuOverlay();
     }
 
-    // Swap front and back buffers
     glutSwapBuffers();
 }
 
-// Handles window resize events
 void reshape(int w, int h) {
     if(h == 0) h = 1;
 
-    // Update viewport to match new window size
     glViewport(0, 0, w, h);
 
-    // Rebuild projection matrix with perspective view
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     gluPerspective(60.0, (float)w / (float)h, 1.0, 200.0);
@@ -286,7 +252,6 @@ void reshape(int w, int h) {
     glMatrixMode(GL_MODELVIEW);
 }
 
-// Initializes OpenGL state and game objects
 void init() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_POINT_SMOOTH);
@@ -297,7 +262,6 @@ void init() {
 
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-    // Initialize map and load a JSON map file
     initMap();
     loadMapFromJson("maps/map1.json");
 
@@ -306,14 +270,11 @@ void init() {
     printf("car vertices: %d faces: %d\n", carModel.vertexCount, carModel.faceCount);
     printf("cloud vertices: %d faces: %d\n", cloudModel.vertexCount, cloudModel.faceCount);
 
-
-    // RANDOM generators
     generateRandomRoad(40,150.0f);
     generateRandomTrees(100);
     generateRandomClouds(20);
 
-    // Initialize camera and car
-    init_camera(&camera);
+    initCamera(&camera);
     initCar(&car);
 
     float startX, startY, startZ;
@@ -323,17 +284,14 @@ void init() {
     startAngle = getStartAngle();
 
     setCarSpawn(&car, startX, startY, startZ, startAngle);
-    update_camera(&camera, car.position, car.angle);
+    snapCameraToTarget(&camera, car.position, car.angle);
 
-    // Initial clear color
     glClearColor(0.4f, 0.7f, 1.0f, 1.0f);
 }
 
-// Program entry point
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
 
-    // Enable double buffering, RGB color, and depth testing
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(800, 600);
     glutCreateWindow("Need For Weed");
@@ -341,7 +299,6 @@ int main(int argc, char** argv) {
     init();
     atexit(freeAssets);
 
-    // Register callback functions
     glutKeyboardFunc(keyboard);
     glutKeyboardUpFunc(keyboardUp);
     glutSpecialFunc(specialKeys);
@@ -350,7 +307,6 @@ int main(int argc, char** argv) {
     glutIdleFunc(display);
     glutReshapeFunc(reshape);
 
-    // Start the GLUT main loop
     glutMainLoop();
     return 0;
 }

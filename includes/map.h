@@ -58,36 +58,39 @@ void getSkyColor(float* r, float* g, float* b);
 
 // Stores all map-related data
 typedef struct {
-    // Road data
     RoadPoint points[MAX_ROAD_POINTS]; // control points for spline road
     int pointCount;                   // number of valid points
     float roadWidth;                  // width of the road
     int closed;                       // whether the road is a loop
 
-    // Obstacles
     Obstacle obstacles[MAX_OBSTACLES];
     int obstacleCount;
 
-    // Lakes
     Lake lakes[MAX_LAKES];
     int lakeCount;
 
-    // Rain zones
     RainZone rainZones[MAX_RAIN_ZONES];
     int rainZoneCount;
 
-    Ground ground;
-
     Sky sky;
-
     Cloud clouds[MAX_CLOUDS];
     int cloudCount;
 
+    Ground ground;
     Tree trees[MAX_TREES];
     int treeCount;
 
-
 } MapData;
+
+void getStartPosition(float* x, float* y, float* z);
+
+float getStartAngle();
+
+void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ);
+
+void renderCheckeredStartLine();
+
+void renderStartPoles();
 
 void generateRandomRoad(int pointCount, float radius);
 
@@ -95,11 +98,8 @@ void generateRandomTrees(int count);
 
 void generateRandomClouds(int count);
 
-void getStartPosition(float* x, float* y, float* z);
-
-float getStartAngle();
-
-void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ);
+// Sky color for background clear color.
+void getSkyColor(float* r, float* g, float* b);
 
 // Initializes map data (clears memory, sets defaults)
 void initMap();

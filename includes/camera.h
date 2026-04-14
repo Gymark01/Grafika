@@ -15,12 +15,15 @@ typedef struct Camera
 } Camera;
 
 //init
-void init_camera(Camera* camera);
+void initCamera(Camera* camera);
 
 //update camera based on car
-void update_camera(Camera* camera, vec3 target, float carAngle);
+void updateCamera(Camera* camera, vec3 target, float carAngle, float speed);
 
 //using camera
-void set_view(Camera* camera, vec3 target);
+void setView(Camera* camera, vec3 target);
+
+//snapping camera to car at init
+void snapCameraToTarget(Camera* camera, vec3 target, float carAngle);
 
 #endif

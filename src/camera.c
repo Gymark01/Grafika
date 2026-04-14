@@ -6,64 +6,79 @@
 
 #include <math.h>
 
-// Converts an angle from degrees to radians
-static inline float degree_to_radian(float deg) {
+static inline float degreeToRadian(float deg)
+{
     return deg * (M_PI / 180.0f);
 }
 
-// Initializes the camera with default values
-void init_camera(Camera* camera) {
-    // Horizontal rotation angle
+void initCamera(Camera* camera)
+{
     camera->horizontal = 0.0f;
 
-    // Vertical rotation angle
     camera->vertical = 0.0f;
 
-    // Distance from the target
-    camera->distance = 10.0f;
+    camera->distance = 8.0f;
 
-    // Initial camera position
     camera->position.x = 0.0f;
     camera->position.y = 4.0f;
     camera->position.z = 10.0f;
 }
 
-// Updates the camera position so it smoothly follows the car
-void update_camera(Camera* camera, vec3 target, float carAngle) {
-    float rad = degree_to_radian(carAngle);
+void updateCamera(Camera* camera, vec3 target, float carAngle, float speed)
+{
+    float rad = degreeToRadian(carAngle);
+    float absSpeed = fabs(speed);
 
-    float distance = camera->distance;
-    float height = 4.0f;
+    float baseDistance = 6.0f;
+    float maxDistance = 10.0f;
+
+    float distance = baseDistance + absSpeed * 4.0f;
+    if (distance > maxDistance) distance = maxDistance;
+
+    float height = 2.0f + absSpeed * 1.5f;
 
     vec3 desired;
 
-    // kamera a kocsi mögött
     desired.x = target.x + sinf(rad) * distance;
     desired.z = target.z + cosf(rad) * distance;
     desired.y = target.y + height;
 
-    float smooth = 0.1f;
+    float smooth = 0.8f + absSpeed * 0.15f;
+    if (smooth > 0.3f) smooth = 0.3f;
+
     camera->position.x += (desired.x - camera->position.x) * smooth;
     camera->position.y += (desired.y - camera->position.y) * smooth;
     camera->position.z += (desired.z - camera->position.z) * smooth;
 }
-// Sets the OpenGL view matrix using the current camera position
-void set_view(Camera* camera, vec3 target) {
+
+void setView(Camera* camera, vec3 target)
+{
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    // Position the camera and make it look at the target
     gluLookAt(camera->position.x, camera->position.y, camera->position.z,
               target.x, target.y + 1.0f, target.z,
               0.0, 1.0, 0.0);
 }
 
-// Rotates the camera by changing horizontal and vertical angles
-void rotate_camera(Camera* camera, float h, float v) {
+void rotateCamera(Camera* camera, float h, float v)
+{
     camera->horizontal += h;
     camera->vertical += v;
 
-    // Clamp vertical angle to avoid extreme rotation
     if(camera->vertical > 80.0f) camera->vertical = 80.0f;
     if(camera->vertical < -10.0f) camera->vertical = -10.0f;
+}
+
+void snapCameraToTarget(Camera* camera, vec3 target, float carAngle)
+{
+    float rad = degreeToRadian(carAngle);
+
+    float distance = camera->distance;
+    float height = 4.0f;
+
+    camera->position.x = target.x + sinf(rad) * distance;
+    camera->position.y = target.y + cosf(rad) * distance;
+    camera->position.z = target.z + height;
+
 }
