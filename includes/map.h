@@ -2,30 +2,29 @@
 #define MAP_H
 
 #define MAX_ROAD_POINTS 200
-#define MAX_OBSTACLES 100
 #define MAX_LAKES 50
 #define MAX_RAIN_ZONES 50
 #define NUM_RAIN 1000
-#define MAX_TREES 200
+#define MAX_TREES 1000
 #define MAX_CLOUDS 100
+#define MAX_LAKE_POINTS 32
+#define MAX_COINS 500
+#define MAX_OIL_PATCHES 20
 
 typedef struct {
     float x, z;
 } RoadPoint;
 
 typedef struct {
-    float x, y, z;
-    float width, height, depth;
-} Obstacle;
-
-typedef struct {
-    float x, y, z;
-    float width, depth;
+    float x, z;
+    int pointCount;
+    float points[MAX_LAKE_POINTS][2];
 } Lake;
 
 typedef struct {
     float x, z;
     float width, depth;
+    float angle;
 } RainZone;
 
 typedef struct{
@@ -52,19 +51,25 @@ typedef struct{
     int type;
 }Tree;
 
+typedef struct{
+    float x, y, z;
+    int active;
+}Coin;
+
+typedef struct {
+    float x, z;
+    float radius;
+    int active;
+} OilPatch;
 
 void getSkyColor(float* r, float* g, float* b);
 
-
 // Stores all map-related data
 typedef struct {
-    RoadPoint points[MAX_ROAD_POINTS]; // control points for spline road
-    int pointCount;                   // number of valid points
-    float roadWidth;                  // width of the road
-    int closed;                       // whether the road is a loop
-
-    Obstacle obstacles[MAX_OBSTACLES];
-    int obstacleCount;
+    RoadPoint points[MAX_ROAD_POINTS];
+    int pointCount;
+    float roadWidth;
+    int closed;
 
     Lake lakes[MAX_LAKES];
     int lakeCount;
@@ -79,6 +84,12 @@ typedef struct {
     Ground ground;
     Tree trees[MAX_TREES];
     int treeCount;
+
+    Coin coins[MAX_COINS];
+    int coinCount;
+
+    OilPatch oilPatches[MAX_OIL_PATCHES];
+    int oilPatchCount;
 
 } MapData;
 
@@ -98,15 +109,33 @@ void generateRandomTrees(int count);
 
 void generateRandomClouds(int count);
 
-// Sky color for background clear color.
+// Generates coins randomly across the spline of the road
+void generateRoadCoins(int maxCount);
+
+void generateRandomRainZones(int count);
+
 void getSkyColor(float* r, float* g, float* b);
+
+int checkTreeCollision(float x, float z, float radius);
+
+int checkStartPoleCollision(float x, float z, float radius);
+
+int checkMapCollision(float x, float z, float radius);
+
+int checkGroundCollision(float x, float z, float radius);
+
+int checkLakeCollision(float x, float y, float radius);
+
+int collectCoinAt(float x, float z, float radius);
+
+int isPointInRainZone(float x, float z);
+
+void generateRandomOilPatches(int count);
+
+int checkOilPatchCollision(float x, float z, float radius);
 
 // Initializes map data (clears memory, sets defaults)
 void initMap();
-
-// Loads map data from a JSON file
-// Returns 1 on success, 0 on failure
-int loadMapFromJson(const char* filename);
 
 // Renders all map elements (road, obstacles, lakes, rain)
 void renderMap();

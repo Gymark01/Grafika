@@ -8,6 +8,7 @@ extern Model treeModel1;
 //extern Model treeModel3;
 extern Model cloudModel;
 extern Model carModel;
+extern Model coinModel;
 
 void loadAssets();
 void freeAssets();

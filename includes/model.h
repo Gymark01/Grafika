@@ -40,6 +40,8 @@ typedef struct {
     int texcoordCount;
     int faceCount;
     int materialCount;
+
+    GLuint fallbackTextureID;
 } Model;
 
 // Loads an OBJ file (and its MTL if present) into the model.
@@ -53,5 +55,7 @@ void renderShadowModel(const Model* model, float lightX, float lightY, float lig
 
 // Frees all allocated memory and OpenGL textures used by the model.
 void freeModel(Model* model);
+
+GLuint loadModelTexture(const char* filename);
 
 #endif

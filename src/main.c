@@ -6,7 +6,12 @@
 
 #include <GL/freeglut.h>
 
+#include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <windows.h>
+#include <mmsystem.h>
+#pragma comment (lib, "winmm.lib")
 
 typedef enum {
     MENU_MAIN,
@@ -18,8 +23,34 @@ typedef enum {
 MenuState menuState = MENU_MAIN;
 bool showMenu = false;
 int selectedMenuItem = 0;
+Camera camera;
+Car car;
+int hitFlashTimer = 0;
+bool keyW = false, keyS = false, keyA = false, keyD = false, keySpace = false;
+float brightness = 1.0f;
+bool gameOver = false;
+int selectedGameOverItem = 0;
+int score = 0;
+float previousStartSide = 0.0f;
+int startLineReady = 0;
 
-void drawText(float x, float y, const char* text) {
+
+float getCarStartSide(float carX, float carZ)
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    float nx = -dirZ;
+    float nz = dirX;
+
+    float dx = carX - sx;
+    float dz = carZ - sz;
+
+    return dx * nx + dz * nz;
+}
+
+void drawText(float x, float y, const char* text)
+{
     glRasterPos2f(x, y);
 
     for (int i = 0; text[i] != '\0'; i++) {
@@ -27,7 +58,203 @@ void drawText(float x, float y, const char* text) {
     }
 }
 
-void renderMenuOverlay() {
+void drawHeart(float x, float y, float size, int filled)
+{
+    if (filled) {
+        glColor3f(1.0f, 0.0f, 0.0f);
+    } else {
+        glColor3f(1.0f, 1.0f, 1.0f);
+    }
+
+    glBegin(GL_POLYGON);
+
+    for (int i = 0; i < 100; i++) {
+        float t = 2.0f * 3.1415926f * i / 100.0f;
+
+        float hx = 16.0f * sinf(t) * sinf(t) * sinf(t);
+        float hy = 13.0f * cosf(t) - 5.0f * cosf(2.0f * t)
+                 - 2.0f * cosf(3.0f * t) - cosf(4.0f * t);
+
+        glVertex2f(x + hx * size, y + hy * size);
+    }
+
+    glEnd();
+}
+
+void renderLivesHUD()
+{
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 800, 0, 600);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+
+    float time = glutGet(GLUT_ELAPSED_TIME) * 0.005f;
+    float pulse = 1.0f + 0.08f * sinf(time);
+
+    drawHeart(700, 550, (car.lives >= 1) ? 0.8f * pulse : 0.8f, car.lives >= 1);
+    drawHeart(740, 550, (car.lives >= 2) ? 0.8f * pulse : 0.8f, car.lives >= 2);
+    drawHeart(780, 550, (car.lives >= 3) ? 0.8f * pulse : 0.8f, car.lives >= 3);
+
+    char text[64];
+    sprintf(text, "Score: %d", score);
+    drawText(20, 560, text);
+
+    glEnable(GL_DEPTH_TEST);
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void drawBigText(float x, float y, float scale, const char* text)
+{
+    glPushMatrix();
+
+    glTranslatef(x, y, 0);
+    glScalef(scale, scale, 1.0f);
+
+    glLineWidth(3.5f);
+
+    for (int i = 0; text[i] != '\0'; i++) {
+        glutStrokeCharacter(GLUT_STROKE_ROMAN, text[i]);
+    }
+
+    glLineWidth(1.0);
+
+    glPopMatrix();
+}
+
+void renderOilSlipText()
+{
+    if (car.oilSlipTimer <= 0) {
+        return;
+    }
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 800, 0, 600);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+
+    int time = glutGet(GLUT_ELAPSED_TIME);
+    int blink = (time / 150) % 2;
+
+    if (blink) {
+
+        glColor3f(1.0f, 1.0f, 0.0f);
+        drawBigText(300, 450, 0.3f, "OIL SLIP!");
+
+    }
+
+    glEnable(GL_DEPTH_TEST);
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void renderHitFlash()
+{
+    if (hitFlashTimer <= 0) {
+        return;
+    }
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 800, 0, 600);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    float alpha = 0.35f * ((float)hitFlashTimer / 10.0f);
+    if (alpha > 0.35f) alpha = 0.35f;
+
+    glColor4f(1.0f, 0.0f, 0.0f, alpha);
+
+    glBegin(GL_QUADS);
+    glVertex2f(0, 0);
+    glVertex2f(800, 0);
+    glVertex2f(800, 600);
+    glVertex2f(0, 600);
+    glEnd();
+
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void renderGameOverOverlay()
+{
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 800, 0, 600);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+
+    glColor4f(0.0f, 0.0f, 0.0f, 0.85f);
+    glBegin(GL_QUADS);
+    glVertex2f(180, 140);
+    glVertex2f(620, 140);
+    glVertex2f(620, 460);
+    glVertex2f(180, 460);
+    glEnd();
+
+    glColor3f(1.0f, 0.2f, 0.2f);
+    drawText(335, 390, "GAME OVER");
+
+    const char* items[2] = { "Restart", "Exit" };
+
+    for (int i = 0; i < 2; i++) {
+        if (i == selectedGameOverItem) {
+            glColor3f(1.0f, 1.0f, 0.0f);
+        } else {
+            glColor3f(1.0f, 1.0f, 1.0f);
+        }
+
+        drawText(350, 300 - i * 60, items[i]);
+    }
+
+    glColor3f(0.7f, 0.7f, 0.7f);
+    drawText(250, 180, "UP/DOWN: Select   Enter: Confirm");
+
+    glEnable(GL_DEPTH_TEST);
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void renderMenuOverlay()
+{
 
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
@@ -114,7 +341,8 @@ void renderMenuOverlay() {
     glMatrixMode(GL_MODELVIEW);
 }
 
-void handleMenuSelection() {
+void handleMenuSelection()
+{
 
     if (menuState != MENU_MAIN) {
         return;
@@ -136,7 +364,14 @@ void handleMenuSelection() {
     }
 }
 
-void specialKeys(int key, int x, int y) {
+void specialKeys(int key, int x, int y)
+{
+    if (gameOver) {
+        if (key == GLUT_KEY_UP || key == GLUT_KEY_DOWN) {
+            selectedGameOverItem = 1 - selectedGameOverItem;
+        }
+        return;
+    }
 
     if (!showMenu || menuState != MENU_MAIN) {
         return;
@@ -153,14 +388,30 @@ void specialKeys(int key, int x, int y) {
     }
 }
 
-bool keyW = false, keyS = false, keyA = false, keyD = false, keySpace = false;
+void keyboard(unsigned char key, int x, int y)
+{
+    if (gameOver){
+        if (key == 13){
+            if (selectedGameOverItem == 0){
+                float startX, startY, startZ;
+                float startAngle;
 
-float brightness = 1.0f;
+                getStartPosition(&startX, &startY, &startZ);
+                startAngle = getStartAngle();
 
-Camera camera;
-Car car;
+                setCarSpawn(&car, startX, startY, startZ, startAngle);
+                snapCameraToTarget(&camera, car.position, car.angle);
 
-void keyboard(unsigned char key, int x, int y){
+                previousStartSide = getCarStartSide(car.position.x, car.position.z);
+                startLineReady = 1;
+
+                gameOver = false;
+                selectedGameOverItem = 0;
+            }else {exit (0);}
+        }
+        return;
+    }
+
     if (key == 27){
         if(!showMenu){
 
@@ -200,7 +451,8 @@ void keyboard(unsigned char key, int x, int y){
     }
 }
 
-void keyboardUp(unsigned char key, int x, int y){
+void keyboardUp(unsigned char key, int x, int y)
+{
     if(key == 'w' || key == 'W') keyW = false;
     if(key == 's' || key == 'S') keyS = false;
     if(key == 'a' || key == 'A') keyA = false;
@@ -213,17 +465,82 @@ void specialKeyUp(int key, int x, int y)
     keySpace = false;
 }
 
-void display() {
+void display()
+{
 
     float skyR, skyG, skyB;
     getSkyColor(&skyR, &skyG, &skyB);
+
+    float carRadius = 0.9f;
 
     glClearColor(skyR * brightness, skyG * brightness, skyB * brightness, 1.0f);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if(!showMenu){
+    if (!showMenu && !gameOver && !car.isSinking) {
         updateCar(&car, keyW, keyS, keyA, keyD, keySpace);
+
+        if (checkOilPatchCollision(car.position.x, car.position.z, carRadius)) {
+            car.oilSlipTimer = 120;
+        }
+
+        if (car.oilSlipTimer > 0) {
+            car.oilSlipTimer--;
+        }
+
+        if (startLineReady) {
+            float currentStartSide = getCarStartSide(car.position.x, car.position.z);
+
+            if (fabs(car.speed) > 0.2f &&
+                previousStartSide < 0.0f &&
+                currentStartSide >= 0.0f) {
+                generateRoadCoins(100);
+            }
+
+            previousStartSide = currentStartSide;
+        }
+
+        if (collectCoinAt(car.position.x, car.position.z, carRadius)) {
+            score += 10;
+            PlaySound(TEXT("assets/Sounds/coin.wav"), NULL, SND_ASYNC | SND_FILENAME);
+        }
+
+        float carRadius = 0.9f;
+
+        if (car.hitCooldown > 0) {
+            car.hitCooldown--;
+        }
+
+        if (checkLakeCollision(car.position.x, car.position.z, carRadius)) {
+            car.isSinking = 1;
+            car.speed = 0.0f;
+        }
+        else if (car.hitCooldown == 0 && car.justHitObstacle){
+            car.lives--;
+            car.hitCooldown = 30;
+            car.speed = 0.0f;
+            hitFlashTimer = 10;
+            PlaySound(TEXT("assets/Sounds/hit.wav"), NULL, SND_ASYNC | SND_FILENAME);
+
+
+            if (car.lives <= 0){
+                gameOver = true;
+            }
+
+        }
+    }
+
+    if (hitFlashTimer > 0) {
+        hitFlashTimer--;
+    }
+
+    if (car.isSinking){
+        car.position.y -= 0.03f;
+
+        if (car.position.y < -0.5f){
+            car.isSinking = 0;
+            gameOver = true;
+        }
     }
 
     updateCamera(&camera, car.position, car.angle, car.speed);
@@ -233,14 +550,28 @@ void display() {
     renderCarShadow(&car);
     renderCar(&car);
 
+    if (!gameOver){
+        renderLivesHUD();
+        renderOilSlipText();
+    }
+
     if(showMenu){
         renderMenuOverlay();
+    }
+
+    if(gameOver){
+        renderGameOverOverlay();
+    }
+
+    if (!hitFlashTimer > 0){
+        hitFlashTimer--;
     }
 
     glutSwapBuffers();
 }
 
-void reshape(int w, int h) {
+void reshape(int w, int h)
+{
     if(h == 0) h = 1;
 
     glViewport(0, 0, w, h);
@@ -252,7 +583,8 @@ void reshape(int w, int h) {
     glMatrixMode(GL_MODELVIEW);
 }
 
-void init() {
+void init()
+{
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_POINT_SMOOTH);
     glPointSize(3);
@@ -263,16 +595,20 @@ void init() {
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
     initMap();
-    loadMapFromJson("maps/map1.json");
 
     loadAssets();
     printf("tree1 vertices: %d faces: %d\n", treeModel1.vertexCount, treeModel1.faceCount);
     printf("car vertices: %d faces: %d\n", carModel.vertexCount, carModel.faceCount);
     printf("cloud vertices: %d faces: %d\n", cloudModel.vertexCount, cloudModel.faceCount);
 
-    generateRandomRoad(40,150.0f);
+    generateRandomRoad(70,300.0f);
+    generateRandomLakes(8);
     generateRandomTrees(100);
-    generateRandomClouds(20);
+    generateRandomClouds(40);
+    generateRoadCoins(70);
+    generateRandomRainZones(2);
+    generateRandomOilPatches(5);
+
 
     initCamera(&camera);
     initCar(&car);
@@ -286,10 +622,15 @@ void init() {
     setCarSpawn(&car, startX, startY, startZ, startAngle);
     snapCameraToTarget(&camera, car.position, car.angle);
 
+    previousStartSide = getCarStartSide(car.position.x, car.position.z);
+    startLineReady = 1;
+
     glClearColor(0.4f, 0.7f, 1.0f, 1.0f);
+
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     glutInit(&argc, argv);
 
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);

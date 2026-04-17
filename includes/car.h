@@ -8,6 +8,11 @@ typedef struct {
     vec3 position;
     float angle;
     float speed;
+    int isSinking;
+    int lives;
+    int hitCooldown;
+    int justHitObstacle;
+    int oilSlipTimer;
 } Car;
 
 // Initializes the car with default values (position, angle, speed).

@@ -14,10 +14,9 @@ static inline float degreeToRadian(float deg)
 void initCamera(Camera* camera)
 {
     camera->horizontal = 0.0f;
-
     camera->vertical = 0.0f;
-
     camera->distance = 8.0f;
+    camera->followDirection = 1.0f;
 
     camera->position.x = 0.0f;
     camera->position.y = 4.0f;
@@ -37,13 +36,18 @@ void updateCamera(Camera* camera, vec3 target, float carAngle, float speed)
 
     float height = 2.0f + absSpeed * 1.5f;
 
+    float targetFollowDirection = (speed < - 0.02f) ? -1.0f : 1.0f;
+
+    float directionSmooth = 0.08f;
+    camera->followDirection += (targetFollowDirection - camera->followDirection) * directionSmooth;
+
     vec3 desired;
 
-    desired.x = target.x + sinf(rad) * distance;
-    desired.z = target.z + cosf(rad) * distance;
+    desired.x = target.x + sinf(rad) * distance * camera->followDirection;
+    desired.z = target.z + cosf(rad) * distance * camera->followDirection;
     desired.y = target.y + height;
 
-    float smooth = 0.8f + absSpeed * 0.15f;
+    float smooth = 0.08f + absSpeed * 0.15f;
     if (smooth > 0.3f) smooth = 0.3f;
 
     camera->position.x += (desired.x - camera->position.x) * smooth;
@@ -77,8 +81,10 @@ void snapCameraToTarget(Camera* camera, vec3 target, float carAngle)
     float distance = camera->distance;
     float height = 4.0f;
 
+    camera->followDirection = 1.0f;
+
     camera->position.x = target.x + sinf(rad) * distance;
-    camera->position.y = target.y + cosf(rad) * distance;
-    camera->position.z = target.z + height;
+    camera->position.z = target.z + cosf(rad) * distance;
+    camera->position.y = target.z + height;
 
 }

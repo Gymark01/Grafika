@@ -183,6 +183,8 @@ static void loadMTL(const char* mtlPath, Model* model)
 
 int loadOBJ(const char* filename, Model* model)
 {
+    model->fallbackTextureID = 0;
+
     FILE* file = fopen(filename, "r");
     if (!file) {
         printf("Failed to open: %s\n", filename);
@@ -314,6 +316,12 @@ int loadOBJ(const char* filename, Model* model)
     return 1;
 }
 
+GLuint loadModelTexture(const char* filename)
+{
+    return loadTexture(filename);
+
+}
+
 void renderModel(const Model* model)
 {
     static int printed = 0;
@@ -369,8 +377,16 @@ void renderModel(const Model* model)
             if (c > 1.0f) c = 1.0f;
 
             glColor3f(c, c, c);
+
+            if (model->fallbackTextureID != 0) {
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, model->fallbackTextureID);
+
+            } else {
             glDisable(GL_TEXTURE_2D);
             glBindTexture(GL_TEXTURE_2D, 0);
+
+            }
         }
 
         glBegin(GL_TRIANGLES);

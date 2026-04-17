@@ -6,6 +6,7 @@ Model treeModel1;
 //Model treeModel3;
 Model cloudModel;
 Model carModel;
+Model coinModel;
 
 void loadAssets()
 {
@@ -28,6 +29,12 @@ void loadAssets()
     if (!loadOBJ("assets/car/model/car.obj", &carModel)) {
         printf("Error: car.obj\n");
     }
+
+    if (!loadOBJ("assets/coin/coin.obj", &coinModel)) {
+        printf("Error: coin.obj\n");
+    } else {
+        coinModel.fallbackTextureID = loadModelTexture("assets/coin/Coin.png");
+    }
 }
 
 void freeAssets()
@@ -37,4 +44,5 @@ void freeAssets()
     //freeModel(&treeModel3);
     freeModel(&cloudModel);
     freeModel(&carModel);
+    freeModel(&coinModel);
 }

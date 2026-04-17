@@ -8,9 +8,11 @@ typedef struct Camera
 {
     vec3 position;
 
-    float horizontal; // rotate (yaw)
-    float vertical;   // up/down (pitch)
-    float distance;   // distance from car
+    float horizontal;
+    float vertical;
+    float distance;
+
+    float followDirection;
 
 } Camera;
 

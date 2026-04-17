@@ -1,4 +1,3 @@
-#include "../includes/cJSON.h"
 #include "../includes/map.h"
 #include "../includes/lighting.h"
 #include "../includes/assets.h"
@@ -15,9 +14,36 @@
 #define MAX_SPLINE_SAMPLES 4000
 #define SAMPLES_PER_SEGMENT 25
 
-
 static MapData currentMap;
 static float rain[NUM_RAIN][3];
+
+static RoadPoint catmullRomPoint(RoadPoint p0, RoadPoint p1, RoadPoint p2, RoadPoint p3, float t);
+static int wrapIndex(int i, int count);
+static void initRain(void);
+
+static float distance2D(float x1, float z1, float x2, float z2);
+
+static int isNearRoad(float x, float z);
+static int isLakeNearRoad(float centerX, float centerZ, float width, float depth);
+static int pointInLake(Lake l, float px, float pz);
+static int isPointInAnyLake(float x, float z);
+
+static void renderGround(void);
+static void renderSingleCloud(Cloud c);
+static void renderClouds(void);
+static void renderLake(Lake l);
+static void renderSingleTree(Tree t);
+static void renderSingleTreeShadow(Tree t);
+static void renderTrees(void);
+static void renderTreeShadows(void);
+static void renderRainZone(RainZone zone);
+static void drawCenterDashedLine(RoadPoint* samples, int sampleCount);
+static void renderRoad(void);
+static void renderSingleCoin(Coin c);
+static void renderCoins(void);
+static void renderSingleOilPatch(OilPatch patch);
+static void renderOilPatches(void);
+
 
 static RoadPoint catmullRomPoint(RoadPoint p0, RoadPoint p1, RoadPoint p2, RoadPoint p3, float t)
 {
@@ -50,29 +76,11 @@ static int wrapIndex(int i, int count)
     return i;
 }
 
-static char* readFile(const char* filename)
+static float distance2D(float x1, float z1, float x2, float z2)
 {
-    FILE* file = fopen(filename, "rb");
-    if (!file) {
-        printf("Failed to open: %s\n", filename);
-        return NULL;
-    }
-
-    fseek(file, 0, SEEK_END);
-    long size = ftell(file);
-    rewind(file);
-
-    char* data = (char*)malloc(size + 1);
-    if (!data) {
-        fclose(file);
-        return NULL;
-    }
-
-    fread(data, 1, size, file);
-    data[size] = '\0';
-
-    fclose(file);
-    return data;
+    float dx = x2 - x1;
+    float dz = z2 - z1;
+    return sqrtf(dx * dx + dz * dz);
 }
 
 static void initRain()
@@ -88,240 +96,19 @@ void initMap()
 {
     memset(&currentMap, 0, sizeof(MapData));
     initRain();
-}
 
-int loadMapFromJson(const char* filename)
-{
-    char* text = readFile(filename);
-    if (!text) {
-        return 0;
-    }
+    currentMap.ground.width = 1000.0f;
+    currentMap.ground.depth = 1000.0f;
+    currentMap.ground.color.r = 0.2f;
+    currentMap.ground.color.g = 0.55f;
+    currentMap.ground.color.b = 0.2f;
 
-    cJSON* root = cJSON_Parse(text);
-    if (!root) {
-        printf("JSON parse error: %s\n", cJSON_GetErrorPtr());
-        free(text);
-        return 0;
-    }
+    currentMap.sky.color.r = 0.4f;
+    currentMap.sky.color.g = 0.7f;
+    currentMap.sky.color.b = 1.0f;
 
-    memset(&currentMap, 0, sizeof(MapData));
-
-    cJSON* ground = cJSON_GetObjectItem(root, "ground");
-    if (ground) {
-        cJSON* width = cJSON_GetObjectItem(ground, "width");
-        cJSON* depth = cJSON_GetObjectItem(ground, "depth");
-        cJSON* color = cJSON_GetObjectItem(ground, "color");
-
-        if (cJSON_IsNumber(width)) currentMap.ground.width = (float)width->valuedouble;
-        if (cJSON_IsNumber(depth)) currentMap.ground.depth = (float)depth->valuedouble;
-
-        if (color) {
-            cJSON* r = cJSON_GetObjectItem(color, "r");
-            cJSON* g = cJSON_GetObjectItem(color, "g");
-            cJSON* b = cJSON_GetObjectItem(color, "b");
-
-            if (cJSON_IsNumber(r)) currentMap.ground.color.r = (float)r->valuedouble;
-            if (cJSON_IsNumber(g)) currentMap.ground.color.g = (float)g->valuedouble;
-            if (cJSON_IsNumber(b)) currentMap.ground.color.b = (float)b->valuedouble;
-        }
-    }
-
-    cJSON* sky = cJSON_GetObjectItem(root, "sky");
-    if (sky) {
-        cJSON* color = cJSON_GetObjectItem(sky, "color");
-        if (color) {
-            cJSON* r = cJSON_GetObjectItem(color, "r");
-            cJSON* g = cJSON_GetObjectItem(color, "g");
-            cJSON* b = cJSON_GetObjectItem(color, "b");
-
-            if (cJSON_IsNumber(r)) currentMap.sky.color.r = (float)r->valuedouble;
-            if (cJSON_IsNumber(g)) currentMap.sky.color.g = (float)g->valuedouble;
-            if (cJSON_IsNumber(b)) currentMap.sky.color.b = (float)b->valuedouble;
-        }
-    }
-
-    cJSON* clouds = cJSON_GetObjectItem(root, "clouds");
-    if (cJSON_IsArray(clouds)) {
-        int count = cJSON_GetArraySize(clouds);
-        if (count > MAX_CLOUDS) count = MAX_CLOUDS;
-
-        currentMap.cloudCount = count;
-
-        for (int i = 0; i < count; i++) {
-            cJSON* c = cJSON_GetArrayItem(clouds, i);
-
-            cJSON* x = cJSON_GetObjectItem(c, "x");
-            cJSON* y = cJSON_GetObjectItem(c, "y");
-            cJSON* z = cJSON_GetObjectItem(c, "z");
-            cJSON* s = cJSON_GetObjectItem(c, "scale");
-
-            if (cJSON_IsNumber(x)) currentMap.clouds[i].x = (float)x->valuedouble;
-            if (cJSON_IsNumber(y)) currentMap.clouds[i].y = (float)y->valuedouble;
-            if (cJSON_IsNumber(z)) currentMap.clouds[i].z = (float)z->valuedouble;
-            if (cJSON_IsNumber(s)) currentMap.clouds[i].scale = (float)s->valuedouble;
-        }
-    }
-
-    cJSON* trees = cJSON_GetObjectItem(root, "trees");
-    if (cJSON_IsArray(trees)) {
-        int count = cJSON_GetArraySize(trees);
-        if (count > MAX_TREES) count = MAX_TREES;
-
-        currentMap.treeCount = count;
-
-        for (int i = 0; i < count; i++) {
-            cJSON* t = cJSON_GetArrayItem(trees, i);
-
-            cJSON* x = cJSON_GetObjectItem(t, "x");
-            cJSON* z = cJSON_GetObjectItem(t, "z");
-            cJSON* scale = cJSON_GetObjectItem(t, "scale");
-
-            if (cJSON_IsNumber(x)) currentMap.trees[i].x = (float)x->valuedouble;
-            if (cJSON_IsNumber(z)) currentMap.trees[i].z = (float)z->valuedouble;
-            if (cJSON_IsNumber(scale)) currentMap.trees[i].scale = (float)scale->valuedouble;
-        }
-    }
-
-    cJSON* obstacles = cJSON_GetObjectItem(root, "obstacles");
-    if (cJSON_IsArray(obstacles)) {
-        int count = cJSON_GetArraySize(obstacles);
-        if (count > MAX_OBSTACLES) {
-            count = MAX_OBSTACLES;
-        }
-
-        currentMap.obstacleCount = count;
-
-        for (int i = 0; i < count; i++) {
-            cJSON* o = cJSON_GetArrayItem(obstacles, i);
-
-            cJSON* x = cJSON_GetObjectItem(o, "x");
-            cJSON* y = cJSON_GetObjectItem(o, "y");
-            cJSON* z = cJSON_GetObjectItem(o, "z");
-            cJSON* w = cJSON_GetObjectItem(o, "width");
-            cJSON* h = cJSON_GetObjectItem(o, "height");
-            cJSON* d = cJSON_GetObjectItem(o, "depth");
-
-            if (cJSON_IsNumber(x)) currentMap.obstacles[i].x = (float)x->valuedouble;
-            if (cJSON_IsNumber(y)) currentMap.obstacles[i].y = (float)y->valuedouble;
-            if (cJSON_IsNumber(z)) currentMap.obstacles[i].z = (float)z->valuedouble;
-            if (cJSON_IsNumber(w)) currentMap.obstacles[i].width = (float)w->valuedouble;
-            if (cJSON_IsNumber(h)) currentMap.obstacles[i].height = (float)h->valuedouble;
-            if (cJSON_IsNumber(d)) currentMap.obstacles[i].depth = (float)d->valuedouble;
-        }
-    }
-
-    cJSON* lakes = cJSON_GetObjectItem(root, "lakes");
-    if (cJSON_IsArray(lakes)) {
-        int count = cJSON_GetArraySize(lakes);
-        if (count > MAX_LAKES) {
-            count = MAX_LAKES;
-        }
-
-        currentMap.lakeCount = count;
-
-        for (int i = 0; i < count; i++) {
-            cJSON* l = cJSON_GetArrayItem(lakes, i);
-
-            cJSON* x = cJSON_GetObjectItem(l, "x");
-            cJSON* y = cJSON_GetObjectItem(l, "y");
-            cJSON* z = cJSON_GetObjectItem(l, "z");
-            cJSON* w = cJSON_GetObjectItem(l, "width");
-            cJSON* d = cJSON_GetObjectItem(l, "depth");
-
-            if (cJSON_IsNumber(x)) currentMap.lakes[i].x = (float)x->valuedouble;
-            if (cJSON_IsNumber(y)) currentMap.lakes[i].y = (float)y->valuedouble;
-            if (cJSON_IsNumber(z)) currentMap.lakes[i].z = (float)z->valuedouble;
-            if (cJSON_IsNumber(w)) currentMap.lakes[i].width = (float)w->valuedouble;
-            if (cJSON_IsNumber(d)) currentMap.lakes[i].depth = (float)d->valuedouble;
-        }
-    }
-
-    cJSON* rainZones = cJSON_GetObjectItem(root, "rainZones");
-    if (cJSON_IsArray(rainZones)) {
-        int count = cJSON_GetArraySize(rainZones);
-        if (count > MAX_RAIN_ZONES) {
-            count = MAX_RAIN_ZONES;
-        }
-
-        currentMap.rainZoneCount = count;
-
-        for (int i = 0; i < count; i++) {
-            cJSON* r = cJSON_GetArrayItem(rainZones, i);
-
-            cJSON* x = cJSON_GetObjectItem(r, "x");
-            cJSON* z = cJSON_GetObjectItem(r, "z");
-            cJSON* w = cJSON_GetObjectItem(r, "width");
-            cJSON* d = cJSON_GetObjectItem(r, "depth");
-
-            if (cJSON_IsNumber(x)) currentMap.rainZones[i].x = (float)x->valuedouble;
-            if (cJSON_IsNumber(z)) currentMap.rainZones[i].z = (float)z->valuedouble;
-            if (cJSON_IsNumber(w)) currentMap.rainZones[i].width = (float)w->valuedouble;
-            if (cJSON_IsNumber(d)) currentMap.rainZones[i].depth = (float)d->valuedouble;
-        }
-    }
-
-    cJSON_Delete(root);
-    free(text);
-
-    printf("Map successfully loaded: %s\n", filename);
-    printf("Road points: %d\n", currentMap.pointCount);
-    printf("Obstacles: %d\n", currentMap.obstacleCount);
-    printf("Lakes: %d\n", currentMap.lakeCount);
-    printf("Rain zones: %d\n", currentMap.rainZoneCount);
-
-    return 1;
-}
-
-static void drawCube(float w, float h, float d)
-{
-    float x = w / 2.0f;
-    float y = h / 2.0f;
-    float z = d / 2.0f;
-
-    glBegin(GL_QUADS);
-
-    glVertex3f(-x, -y,  z); glVertex3f( x, -y,  z);
-    glVertex3f( x,  y,  z); glVertex3f(-x,  y,  z);
-
-    glVertex3f(-x, -y, -z); glVertex3f( x, -y, -z);
-    glVertex3f( x,  y, -z); glVertex3f(-x,  y, -z);
-
-    glVertex3f(-x, -y, -z); glVertex3f(-x, -y,  z);
-    glVertex3f(-x,  y,  z); glVertex3f(-x,  y, -z);
-
-    glVertex3f( x, -y, -z); glVertex3f( x, -y,  z);
-    glVertex3f( x,  y,  z); glVertex3f( x,  y, -z);
-
-    glVertex3f(-x,  y, -z); glVertex3f( x,  y, -z);
-    glVertex3f( x,  y,  z); glVertex3f(-x,  y,  z);
-
-    glVertex3f(-x, -y, -z); glVertex3f( x, -y, -z);
-    glVertex3f( x, -y,  z); glVertex3f(-x, -y,  z);
-
-    glEnd();
-}
-
-static void renderGround()
-{
-    float r = currentMap.ground.color.r * brightness;
-    float g = currentMap.ground.color.g * brightness;
-    float b = currentMap.ground.color.b * brightness;
-
-    if (r > 1.0f) r = 1.0f;
-    if (g > 1.0f) g = 1.0f;
-    if (b > 1.0f) b = 1.0f;
-
-    glColor3f(r, g, b);
-
-    float hw = currentMap.ground.width / 2.0f;
-    float hd = currentMap.ground.depth / 2.0f;
-
-    glBegin(GL_QUADS);
-    glVertex3f(-hw, -0.01f, -hd);
-    glVertex3f( hw, -0.01f, -hd);
-    glVertex3f( hw, -0.01f,  hd);
-    glVertex3f(-hw, -0.01f,  hd);
-    glEnd();
+    currentMap.roadWidth = 10.0f;
+    currentMap.closed = 1;
 }
 
 void getSkyColor(float* r, float* g, float* b)
@@ -351,25 +138,139 @@ void generateRandomRoad(int pointCount, float radius)
     }
 }
 
-static void renderSingleCloud(Cloud c)
+void generateRoadCoins(int maxCount)
 {
-    glPushMatrix();
+    currentMap.coinCount = 0;
 
-    float offset = glutGet(GLUT_ELAPSED_TIME) * 0.0005f;
-    glTranslatef(c.x + offset, c.y, c.z);
-    glScalef(0.01f * c.scale,0.01f * c.scale,0.01f * c.scale);
+    if (currentMap.pointCount < 4) {
+        return;
+    }
 
-    glColor3f(1.0f, 1.0f, 1.0f);
-    renderModel(&cloudModel);
+    RoadPoint samples[MAX_SPLINE_SAMPLES];
+    int sampleCount = 0;
 
-    glPopMatrix();
+    for (int i = 0; i < currentMap.pointCount; i++) {
+        int i0 = wrapIndex(i - 1, currentMap.pointCount);
+        int i1 = wrapIndex(i,     currentMap.pointCount);
+        int i2 = wrapIndex(i + 1, currentMap.pointCount);
+        int i3 = wrapIndex(i + 2, currentMap.pointCount);
+
+        RoadPoint p0 = currentMap.points[i0];
+        RoadPoint p1 = currentMap.points[i1];
+        RoadPoint p2 = currentMap.points[i2];
+        RoadPoint p3 = currentMap.points[i3];
+
+        for (int s = 0; s < SAMPLES_PER_SEGMENT; s++) {
+            if (sampleCount >= MAX_SPLINE_SAMPLES) break;
+
+            float t = (float)s / (float)SAMPLES_PER_SEGMENT;
+            samples[sampleCount++] = catmullRomPoint(p0, p1, p2, p3, t);
+        }
+    }
+
+    if (sampleCount < 2) {
+        return;
+    }
+
+    int index = rand() % 20;
+
+    while (index < sampleCount && currentMap.coinCount < maxCount) {
+        currentMap.coins[currentMap.coinCount].x = samples[index].x;
+        currentMap.coins[currentMap.coinCount].y = 0.8f;
+        currentMap.coins[currentMap.coinCount].z = samples[index].z;
+        currentMap.coins[currentMap.coinCount].active = 1;
+        currentMap.coinCount++;
+
+        int randomStep = 15 + rand() % 35;
+        index += randomStep;
+    }
 }
 
-static void renderClouds()
+void generateRandomLakes(int count)
 {
-    for (int i = 0; i < currentMap.cloudCount; i++)
-    {
-        renderSingleCloud(currentMap.clouds[i]);
+    currentMap.lakeCount = 0;
+
+    int attempts = 0;
+    int maxAttempts = count * 100;
+
+    float halfGroundW = currentMap.ground.width / 2.0f;
+    float halfGroundD = currentMap.ground.depth / 2.0f;
+
+    while (currentMap.lakeCount < count && attempts < maxAttempts) {
+        attempts++;
+
+        float cx = ((float)rand() / RAND_MAX) * (halfGroundW * 2.0f) - halfGroundW;
+        float cz = ((float)rand() / RAND_MAX) * (halfGroundD * 2.0f) - halfGroundD;
+
+        int pointCount = 24;
+
+        float baseRadius = 15.0f + rand() % 40;
+
+        Lake lake;
+        lake.x = cx;
+        lake.z = cz;
+        lake.pointCount = pointCount;
+
+        float radii[MAX_LAKE_POINTS];
+        float smoothRadii[MAX_LAKE_POINTS];
+
+        for (int i = 0; i < pointCount; i++) {
+            float randomFactor = 0.85f + ((float)rand() / RAND_MAX) * 0.3f;
+            radii[i] = baseRadius * randomFactor;
+        }
+
+        for (int i = 0; i < pointCount; i++) {
+            int prev = (i - 1 + pointCount) % pointCount;
+            int next = (i + 1) % pointCount;
+
+            smoothRadii[i] = (radii[prev] + radii[i] + radii[next]) / 3.0f;
+        }
+
+        for (int i = 0; i < pointCount; i++) {
+            float angle = (float)i / pointCount * 2.0f * M_PI;
+            float r = smoothRadii[i];
+
+            lake.points[i][0] = cosf(angle) * r;
+            lake.points[i][1] = sinf(angle) * r;
+        }
+
+        if (isLakeNearRoad(cx, cz, baseRadius * 1.2f, baseRadius * 1.2f)) {
+            continue;
+        }
+
+        currentMap.lakes[currentMap.lakeCount++] = lake;
+    }
+}
+
+void generateRandomTrees(int count)
+{
+    currentMap.treeCount = 0;
+
+    int attempts = 0;
+    int maxAttempts = count * 100;
+    float width = currentMap.ground.width;
+    float depth = currentMap.ground.depth;
+
+    while (currentMap.treeCount < count && attempts < maxAttempts) {
+        attempts++;
+
+        float x = ((float)rand() / RAND_MAX) * width - (width / 2.0f);
+        float z = ((float)rand() / RAND_MAX) * depth - (depth / 2.0f);
+
+        if (isNearRoad(x, z)) {
+            continue;
+        }
+
+        if (isPointInAnyLake(x, z)){
+            continue;
+        }
+
+        currentMap.trees[currentMap.treeCount].x = x;
+        currentMap.trees[currentMap.treeCount].z = z;
+        currentMap.trees[currentMap.treeCount].scale = 0.8f + (float)(rand() % 70) / 100.0f;
+        currentMap.trees[currentMap.treeCount].type = rand() % 3;
+
+        currentMap.treeCount++;
     }
 }
 
@@ -377,44 +278,153 @@ void generateRandomClouds(int count)
 {
     currentMap.cloudCount = count;
 
+    float width = currentMap.ground.width;
+    float depth = currentMap.ground.depth;
+
     for (int i = 0; i < count; i++) {
-        currentMap.clouds[i].x = rand()%400 - 200;
-        currentMap.clouds[i].z = rand()%400 - 200;
+
+        currentMap.clouds[i].x = ((float)rand() / RAND_MAX) * width - (width / 2.0f);
+        currentMap.clouds[i].z = ((float)rand() / RAND_MAX) * depth - (depth / 2.0f);
+
         currentMap.clouds[i].y = 30 + rand()%30;
         currentMap.clouds[i].scale = 1.0f + (rand()%100)/100.0f;
     }
 }
 
-static void renderSingleTree(Tree t)
+void generateRandomRainZones(int count)
 {
-    glPushMatrix();
-    glTranslatef(t.x, 0.0f, t.z);
-    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
-    renderModel(&treeModel1);
-    glPopMatrix();
-}
+    currentMap.rainZoneCount = 0;
 
-static void renderSingleTreeShadow(Tree t)
-{
-    glPushMatrix();
-    glTranslatef(t.x, 0.0f, t.z);
-    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
-    renderShadowModel(&treeModel1, 1.0f, 2.0f, 0.7f);
-    glPopMatrix();
-}
+    if (currentMap.pointCount < 4) {
+        return;
+    }
 
-static void renderTrees()
-{
-    for (int i = 0; i < currentMap.treeCount; i++){
-        renderSingleTree(currentMap.trees[i]);
+    if (count > 2) {
+        count = 2;
+    }
+
+    for (int i = 0; i < count && currentMap.rainZoneCount < MAX_RAIN_ZONES; i++) {
+        int roadIndex = rand() % currentMap.pointCount;
+
+        int i0 = wrapIndex(roadIndex - 1, currentMap.pointCount);
+        int i1 = wrapIndex(roadIndex,     currentMap.pointCount);
+        int i2 = wrapIndex(roadIndex + 1, currentMap.pointCount);
+        int i3 = wrapIndex(roadIndex + 2, currentMap.pointCount);
+
+        RoadPoint p0 = currentMap.points[i0];
+        RoadPoint p1 = currentMap.points[i1];
+        RoadPoint p2 = currentMap.points[i2];
+        RoadPoint p3 = currentMap.points[i3];
+
+        float t = (float)(rand() % 100) / 100.0f;
+        RoadPoint center = catmullRomPoint(p0, p1, p2, p3, t);
+
+        RoadPoint ahead = catmullRomPoint(p0, p1, p2, p3, t + 0.03f);
+        float dx = ahead.x - center.x;
+        float dz = ahead.z - center.z;
+
+        float angle = atan2f(dz, dx) * 180.0f / 3.1415926535f;
+
+        RainZone zone;
+        zone.x = center.x;
+        zone.z = center.z;
+
+        /* Wider than the road, so rain is not only directly above it. */
+        zone.width = currentMap.roadWidth + 35.0f + (float)(rand() % 15);
+
+        /* Long zone stretched along the road direction. */
+        zone.depth = 70.0f + (float)(rand() % 50);
+
+        zone.angle = angle;
+
+        currentMap.rainZones[currentMap.rainZoneCount++] = zone;
     }
 }
 
-static void renderTreeShadows()
+void generateRandomOilPatches(int count)
 {
-    for (int i = 0; i < currentMap.treeCount; i++) {
-        renderSingleTreeShadow(currentMap.trees[i]);
+    currentMap.oilPatchCount = 0;
+
+    if (currentMap.pointCount < 4) {
+        return;
     }
+
+    RoadPoint samples[MAX_SPLINE_SAMPLES];
+    int sampleCount = 0;
+
+    for (int i = 0; i < currentMap.pointCount; i++) {
+        int i0 = wrapIndex(i - 1, currentMap.pointCount);
+        int i1 = wrapIndex(i,     currentMap.pointCount);
+        int i2 = wrapIndex(i + 1, currentMap.pointCount);
+        int i3 = wrapIndex(i + 2, currentMap.pointCount);
+
+        RoadPoint p0 = currentMap.points[i0];
+        RoadPoint p1 = currentMap.points[i1];
+        RoadPoint p2 = currentMap.points[i2];
+        RoadPoint p3 = currentMap.points[i3];
+
+        for (int s = 0; s < SAMPLES_PER_SEGMENT; s++) {
+            if (sampleCount >= MAX_SPLINE_SAMPLES) break;
+
+            float t = (float)s / (float)SAMPLES_PER_SEGMENT;
+            samples[sampleCount++] = catmullRomPoint(p0, p1, p2, p3, t);
+        }
+    }
+
+    if (sampleCount < 10) {
+        return;
+    }
+
+    int index = 20 + rand() % 20;
+
+    while (index < sampleCount && currentMap.oilPatchCount < count) {
+        OilPatch patch;
+        patch.x = samples[index].x;
+        patch.z = samples[index].z;
+        patch.radius = 2.2f + ((float)(rand() % 100) / 100.0f);
+        patch.active = 1;
+
+        currentMap.oilPatches[currentMap.oilPatchCount++] = patch;
+
+        index += 60 + rand() % 80;
+    }
+}
+
+int isPointInRainZone(float x, float z)
+{
+    for (int i = 0; i < currentMap.rainZoneCount; i++) {
+        RainZone zone = currentMap.rainZones[i];
+
+        float dx = x - zone.x;
+        float dz = z - zone.z;
+
+        float rad = -zone.angle * 3.1415926535f / 180.0f;
+        float localX = dx * cosf(rad) - dz * sinf(rad);
+        float localZ = dx * sinf(rad) + dz * cosf(rad);
+
+        float halfW = zone.width / 2.0f;
+        float halfD = zone.depth / 2.0f;
+
+        /* Middle rectangle */
+        if (localX >= -halfD && localX <= halfD &&
+            localZ >= -halfW && localZ <= halfW) {
+            return 1;
+        }
+
+        /* Rounded end caps */
+        float frontDx = localX - halfD;
+        float backDx  = localX + halfD;
+
+        if ((frontDx * frontDx + localZ * localZ) <= (halfW * halfW)) {
+            return 1;
+        }
+
+        if ((backDx * backDx + localZ * localZ) <= (halfW * halfW)) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 static int isNearRoad(float x, float z)
@@ -452,84 +462,539 @@ static int isNearRoad(float x, float z)
     return minDist < (currentMap.roadWidth * 0.5f + 4.0f);
 }
 
-void generateRandomTrees(int count)
+static int isLakeNearRoad(float centerX, float centerZ, float width, float depth)
 {
-    currentMap.treeCount = 0;
+    if (currentMap.pointCount < 4) return 0;
 
-    int attempts = 0;
-    int maxAttempts = count * 50;
+    const int samplesPerSegment = 25;
 
-    while (currentMap.treeCount < count && attempts < maxAttempts) {
-        attempts++;
+    float halfW = width / 2.0f;
+    float halfD = depth / 2.0f;
 
-        float x = (float)(rand() % 400 - 200);
-        float z = (float)(rand() % 400 - 200);
+    float testPoints[9][2] = {
+        { centerX, centerZ },
+        { centerX - halfW, centerZ - halfD },
+        { centerX + halfW, centerZ - halfD },
+        { centerX - halfW, centerZ + halfD },
+        { centerX + halfW, centerZ + halfD },
+        { centerX - halfW, centerZ },
+        { centerX + halfW, centerZ },
+        { centerX, centerZ - halfD },
+        { centerX, centerZ + halfD }
+    };
 
-        if (isNearRoad(x, z)) {
+    for (int p = 0; p < 9; p++) {
+        float x = testPoints[p][0];
+        float z = testPoints[p][1];
+
+        float minDist = 999999.0f;
+
+        for (int i = 0; i < currentMap.pointCount; i++) {
+            int i0 = wrapIndex(i - 1, currentMap.pointCount);
+            int i1 = wrapIndex(i,     currentMap.pointCount);
+            int i2 = wrapIndex(i + 1, currentMap.pointCount);
+            int i3 = wrapIndex(i + 2, currentMap.pointCount);
+
+            RoadPoint p0 = currentMap.points[i0];
+            RoadPoint p1 = currentMap.points[i1];
+            RoadPoint p2 = currentMap.points[i2];
+            RoadPoint p3 = currentMap.points[i3];
+
+            for (int s = 0; s <= samplesPerSegment; s++) {
+                float t = (float)s / (float)samplesPerSegment;
+                RoadPoint rp = catmullRomPoint(p0, p1, p2, p3, t);
+
+                float dx = x - rp.x;
+                float dz = z - rp.z;
+                float dist = sqrtf(dx * dx + dz * dz);
+
+                if (dist < minDist) {
+                    minDist = dist;
+                }
+            }
+        }
+
+        if (minDist < (currentMap.roadWidth * 0.5f + 8.0f)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int pointInLake(Lake l, float px, float pz)
+{
+    int inside = 0;
+
+    for (int i = 0, j = l.pointCount - 1; i < l.pointCount; j = i++) {
+        float xi = l.points[i][0] + l.x;
+        float zi = l.points[i][1] + l.z;
+
+        float xj = l.points[j][0] + l.x;
+        float zj = l.points[j][1] + l.z;
+
+        int intersect =
+            ((zi > pz) != (zj > pz)) &&
+            (px < (xj - xi) * (pz - zi) / (zj - zi + 0.00001f) + xi);
+
+        if (intersect)
+            inside = !inside;
+    }
+
+    return inside;
+}
+
+static int isPointInAnyLake(float x, float z)
+{
+    for (int i = 0; i < currentMap.lakeCount; i++) {
+        if (pointInLake(currentMap.lakes[i], x, z)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int checkLakeCollision(float x, float z, float radius)
+{
+    for (int i = 0; i < currentMap.lakeCount; i++) {
+        if (pointInLake(currentMap.lakes[i], x, z)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int checkTreeCollision(float x, float z, float radius)
+{
+    for (int i = 0; i < currentMap.treeCount; i++){
+        float treeRadius = 0.88f * currentMap.trees[i].scale;
+        float dist = distance2D(x, z, currentMap.trees[i].x, currentMap.trees[i].z);
+
+        if ( dist < radius + treeRadius){
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int checkStartPoleCollision(float x, float z, float radius)
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    float nx = -dirZ;
+    float nz = dirX;
+
+    float halfWidth = currentMap.roadWidth / 2.0f + 0.5f;
+
+    float leftX = sx + nx * halfWidth;
+    float leftZ = sz + nz * halfWidth;
+    float rightX = sx - nx * halfWidth;
+    float rightZ = sz - nz * halfWidth;
+
+    float poleRadius = 0.3f;
+
+    float leftDist = distance2D(x, z, leftX, leftZ);
+    float rightDist = distance2D(x, z, rightX, rightZ);
+
+    if (leftDist < radius + poleRadius) return 1;
+    if (rightDist < radius + poleRadius) return 1;
+
+    return 0;
+}
+
+int checkGroundCollision(float x, float z, float radius)
+{
+    float halfWidth = currentMap.ground.width / 2.0f;
+    float halfDepth = currentMap.ground.depth / 2.0f;
+
+    if (x - radius < -halfWidth) return 1;
+    if (x + radius >  halfWidth) return 1;
+    if (z - radius < -halfDepth) return 1;
+    if (z + radius >  halfDepth) return 1;
+
+    return 0;
+}
+
+int checkMapCollision(float x, float z, float radius)
+{
+    if (checkTreeCollision(x, z, radius)) {
+        return 1;
+    }
+
+    if (checkStartPoleCollision(x, z, radius)) {
+        return 1;
+    }
+
+    if (checkGroundCollision(x, z, radius)) {
+        return 1;
+    }
+
+    return 0;
+}
+
+int checkOilPatchCollision(float x, float z, float radius)
+{
+    for (int i = 0; i < currentMap.oilPatchCount; i++) {
+        if (!currentMap.oilPatches[i].active) {
             continue;
         }
 
-        currentMap.trees[currentMap.treeCount].x = x;
-        currentMap.trees[currentMap.treeCount].z = z;
-        currentMap.trees[currentMap.treeCount].scale = 0.8f + (float)(rand() % 70) / 100.0f;
-        currentMap.trees[currentMap.treeCount].type = rand() % 3;
+        float dx = x - currentMap.oilPatches[i].x;
+        float dz = z - currentMap.oilPatches[i].z;
+        float dist = sqrtf(dx * dx + dz * dz);
 
-        currentMap.treeCount++;
+        if (dist < radius + currentMap.oilPatches[i].radius) {
+            currentMap.oilPatches[i].active = 0;
+            return 1;
+        }
     }
+
+    return 0;
 }
 
-static void renderObstacle(Obstacle o)
+void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ)
 {
-    float r = 1.0f * brightness;
-    if (r > 1.0f) r = 1.0f;
+    if (currentMap.pointCount < 4) {
+        *sx = 0.0f;
+        *sz = 0.0f;
+        *dirX = 0.0f;
+        *dirZ = -1.0f;
+        return;
+    }
 
-    glColor3f(r, 0.0f, 0.0f);
+    int i0 = wrapIndex(-1, currentMap.pointCount);
+    int i1 = wrapIndex(0,  currentMap.pointCount);
+    int i2 = wrapIndex(1,  currentMap.pointCount);
+    int i3 = wrapIndex(2,  currentMap.pointCount);
+
+    RoadPoint p0 = currentMap.points[i0];
+    RoadPoint p1 = currentMap.points[i1];
+    RoadPoint p2 = currentMap.points[i2];
+    RoadPoint p3 = currentMap.points[i3];
+
+    RoadPoint a = catmullRomPoint(p0, p1, p2, p3, 0.0f);
+    RoadPoint b = catmullRomPoint(p0, p1, p2, p3, 0.03f);
+
+    float dx = b.x - a.x;
+    float dz = b.z - a.z;
+    float len = sqrtf(dx * dx + dz * dz);
+
+    if (len <= 0.0001f) {
+        dx = 0.0f;
+        dz = -1.0f;
+        len = 1.0f;
+    }
+
+    dx /= len;
+    dz /= len;
+
+    *sx = a.x;
+    *sz = a.z;
+    *dirX = dx;
+    *dirZ = dz;
+}
+
+void getStartPosition(float* x, float* y, float* z)
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    float backOffset = 2.0f;
+
+    *x = sx - dirX * backOffset;
+    *y = 0.0f;
+    *z = sz - dirZ * backOffset;
+}
+
+float getStartAngle()
+{
+    float sx, sz, dirX, dirZ;
+    getStartTransform(&sx, &sz, &dirX, &dirZ);
+
+    return atan2f(-dirX, -dirZ) * 180.0f / 3.1415926535f;
+}
+
+static void renderGround()
+{
+    float r = currentMap.ground.color.r * brightness;
+    float g = currentMap.ground.color.g * brightness;
+    float b = currentMap.ground.color.b * brightness;
+
+    if (r > 1.0f) r = 1.0f;
+    if (g > 1.0f) g = 1.0f;
+    if (b > 1.0f) b = 1.0f;
+
+    glColor3f(r, g, b);
+
+    float hw = currentMap.ground.width / 2.0f;
+    float hd = currentMap.ground.depth / 2.0f;
+
+    glBegin(GL_QUADS);
+    glVertex3f(-hw, -0.01f, -hd);
+    glVertex3f( hw, -0.01f, -hd);
+    glVertex3f( hw, -0.01f,  hd);
+    glVertex3f(-hw, -0.01f,  hd);
+    glEnd();
+}
+
+static void renderSingleCloud(Cloud c)
+{
     glPushMatrix();
 
-    glTranslatef(o.x, o.y + o.height / 2.0f, o.z);
-    drawCube(o.width, o.height, o.depth);
+    float offset = glutGet(GLUT_ELAPSED_TIME) * 0.0005f;
+    glTranslatef(c.x + offset, c.y, c.z);
+    glScalef(0.01f * c.scale,0.01f * c.scale,0.01f * c.scale);
+
+    glColor3f(1.0f, 1.0f, 1.0f);
+    renderModel(&cloudModel);
+
     glPopMatrix();
+}
+
+static void renderClouds()
+{
+    for (int i = 0; i < currentMap.cloudCount; i++)
+    {
+        renderSingleCloud(currentMap.clouds[i]);
+    }
 }
 
 static void renderLake(Lake l)
 {
-    float b = 1.0f * brightness;
-    if (b > 1.0f) b = 1.0f;
+    float sandR = 0.76f * brightness;
+    float sandG = 0.68f * brightness;
+    float sandB = 0.50f * brightness;
 
-    glColor3f(0.0f, 0.0f, b);
+    float wetR = 0.55f * brightness;
+    float wetG = 0.45f * brightness;
+    float wetB = 0.30f * brightness;
+
+    float waterR = 0.08f * brightness;
+    float waterG = 0.40f * brightness;
+    float waterB = 0.85f * brightness;
+
+    if (sandR > 1.0f) sandR = 1.0f;
+    if (sandG > 1.0f) sandG = 1.0f;
+    if (sandB > 1.0f) sandB = 1.0f;
+
+    if (wetR > 1.0f) wetR = 1.0f;
+    if (wetG > 1.0f) wetG = 1.0f;
+    if (wetB > 1.0f) wetB = 1.0f;
+
+    if (waterR > 1.0f) waterR = 1.0f;
+    if (waterG > 1.0f) waterG = 1.0f;
+    if (waterB > 1.0f) waterB = 1.0f;
+
     glPushMatrix();
-    glTranslatef(l.x, l.y + 0.01f, l.z);
+    glTranslatef(l.x, 0.0f, l.z);
 
-    glBegin(GL_QUADS);
-    glVertex3f(-l.width / 2.0f, 0.0f, -l.depth / 2.0f);
-    glVertex3f( l.width / 2.0f, 0.0f, -l.depth / 2.0f);
-    glVertex3f( l.width / 2.0f, 0.0f,  l.depth / 2.0f);
-    glVertex3f(-l.width / 2.0f, 0.0f,  l.depth / 2.0f);
+    glColor3f(sandR, sandG, sandB);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.004f, 0.0f);
+    for (int i = 0; i <= l.pointCount; i++) {
+        int idx = i % l.pointCount;
+        glVertex3f(l.points[idx][0] * 1.22f, 0.004f, l.points[idx][1] * 1.22f);
+    }
+    glEnd();
+
+    glColor3f(wetR, wetG, wetB);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.007f, 0.0f);
+    for (int i = 0; i <= l.pointCount; i++) {
+        int idx = i % l.pointCount;
+        glVertex3f(l.points[idx][0] * 1.08f, 0.007f, l.points[idx][1] * 1.08f);
+    }
+    glEnd();
+
+    glColor3f(waterR, waterG, waterB);
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.010f, 0.0f);
+    for (int i = 0; i <= l.pointCount; i++) {
+        int idx = i % l.pointCount;
+        glVertex3f(l.points[idx][0], 0.010f, l.points[idx][1]);
+    }
     glEnd();
 
     glPopMatrix();
 }
 
+static void renderSingleOilPatch(OilPatch patch)
+{
+    if (!patch.active) {
+        return;
+    }
+
+    glColor3f(0.05f, 0.05f, 0.05f);
+
+    glPushMatrix();
+    glTranslatef(patch.x, 0.015f, patch.z);
+
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(0.0f, 0.0f, 0.0f);
+
+    for (int i = 0; i <= 24; i++) {
+        float angle = (2.0f * 3.1415926535f * i) / 24.0f;
+        float r = patch.radius * (0.85f + 0.15f * sinf(i * 1.7f));
+        glVertex3f(cosf(angle) * r, 0.0f, sinf(angle) * r);
+    }
+
+    glEnd();
+    glPopMatrix();
+}
+
+static void renderOilPatches(void)
+{
+    for (int i = 0; i < currentMap.oilPatchCount; i++) {
+        renderSingleOilPatch(currentMap.oilPatches[i]);
+    }
+}
+
+static void renderSingleTree(Tree t)
+{
+    glPushMatrix();
+    glTranslatef(t.x, 0.0f, t.z);
+    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
+    renderModel(&treeModel1);
+    glPopMatrix();
+}
+
+static void renderSingleTreeShadow(Tree t)
+{
+    glPushMatrix();
+    glTranslatef(t.x, 0.0f, t.z);
+    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
+    renderShadowModel(&treeModel1, 1.0f, 2.0f, 0.7f);
+    glPopMatrix();
+}
+
+static void renderTreeShadows()
+{
+    for (int i = 0; i < currentMap.treeCount; i++) {
+        renderSingleTreeShadow(currentMap.trees[i]);
+    }
+}
+
+static void renderTrees()
+{
+    for (int i = 0; i < currentMap.treeCount; i++){
+        renderSingleTree(currentMap.trees[i]);
+    }
+}
+
 static void renderRainZone(RainZone zone)
 {
-    glColor3f(1.0f, 1.0f, 1.0f);
+    float halfW = zone.width / 2.0f;
+    float halfD = zone.depth / 2.0f;
 
-    glBegin(GL_POINTS);
+    glPushMatrix();
+    glTranslatef(zone.x, 0.0f, zone.z);
+    glRotatef(zone.angle, 0.0f, 1.0f, 0.0f);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glColor4f(0.2f, 0.2f, 0.25f, 0.16f);
+    glBegin(GL_QUADS);
+    glVertex3f(-halfD, 0.002f, -halfW);
+    glVertex3f( halfD, 0.002f, -halfW);
+    glVertex3f( halfD, 0.002f,  halfW);
+    glVertex3f(-halfD, 0.002f,  halfW);
+    glEnd();
+
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(halfD, 0.002f, 0.0f);
+    for (int i = 0; i <= 20; i++) {
+        float a = -3.1415926535f / 2.0f + (3.1415926535f * i / 20.0f);
+        float x = halfD + cosf(a) * halfW;
+        float z = sinf(a) * halfW;
+        glVertex3f(x, 0.002f, z);
+    }
+    glEnd();
+
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex3f(-halfD, 0.002f, 0.0f);
+    for (int i = 0; i <= 20; i++) {
+        float a = 3.1415926535f / 2.0f + (3.1415926535f * i / 20.0f);
+        float x = -halfD + cosf(a) * halfW;
+        float z = sinf(a) * halfW;
+        glVertex3f(x, 0.002f, z);
+    }
+    glEnd();
+
+    glColor3f(0.8f, 0.8f, 1.0f);
+
+    glBegin(GL_LINES);
+
+    glColor3f(0.8f, 0.8f, 1.0f);
+
+    glBegin(GL_LINES);
+
     for (int i = 0; i < NUM_RAIN; i++) {
-
-        float x = zone.x + ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone.width;
-        float z = zone.z + ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone.depth;
+        float localX = ((float)(rand() % 1000) / 1000.0f - 0.5f) * (zone.depth + halfW);
+        float localZ = ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone.width;
         float y = rain[i][1];
 
-        glVertex3f(x, y, z);
+        glVertex3f(localX, y, localZ);
+        glVertex3f(localX, y - 0.8f, localZ);
 
-        rain[i][1] -= 0.2f;
+        rain[i][1] -= 0.35f;
 
         if (rain[i][1] < 0.0f) {
-            rain[i][1] = (float)(rand() % 20 + 5);
+            rain[i][1] = (float)(rand() % 20 + 8);
         }
     }
     glEnd();
+
+    glDisable(GL_BLEND);
+    glPopMatrix();
+}
+
+static void renderSingleCoin(Coin c)
+{
+    if (!c.active) {
+        return;
+    }
+
+    glPushMatrix();
+
+    float rot = glutGet(GLUT_ELAPSED_TIME) * 0.2f;
+
+    glTranslatef(c.x, c.y, c.z);
+    glRotatef(rot, 0.0f, 1.0f, 0.0f);
+    glScalef(0.7f, 0.7f, 0.7f);
+
+    renderModel(&coinModel);
+
+    glPopMatrix();
+}
+
+static void renderCoins(void)
+{
+    for (int i = 0; i < currentMap.coinCount; i++) {
+        renderSingleCoin(currentMap.coins[i]);
+    }
+}
+
+int collectCoinAt(float x, float z, float radius)
+{
+    for (int i = 0; i < currentMap.coinCount; i++) {
+        if (!currentMap.coins[i].active) continue;
+
+        float dx = x - currentMap.coins[i].x;
+        float dz = z - currentMap.coins[i].z;
+        float dist = sqrtf(dx * dx + dz * dz);
+
+        float coinRadius = 1.2f;
+
+        if (dist < radius + coinRadius) {
+            currentMap.coins[i].active = 0;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
@@ -590,26 +1055,6 @@ static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
     }
 
     glEnd();
-}
-
-void getStartPosition(float* x, float* y, float* z)
-{
-    float sx, sz, dirX, dirZ;
-    getStartTransform(&sx, &sz, &dirX, &dirZ);
-
-    float backOffset = 2.0f;
-
-    *x = sx - dirX * backOffset;
-    *y = 0.0f;
-    *z = sz - dirZ * backOffset;
-}
-
-float getStartAngle()
-{
-    float sx, sz, dirX, dirZ;
-    getStartTransform(&sx, &sz, &dirX, &dirZ);
-
-    return atan2f(-dirX, -dirZ) * 180.0f / 3.1415926535f;
 }
 
 void renderCheckeredStartLine()
@@ -686,48 +1131,6 @@ void renderStartPoles()
     glScalef(0.2f, 3.0f, 0.2f);
     glutSolidCube(1.0f);
     glPopMatrix();
-}
-
-void getStartTransform(float* sx, float* sz, float* dirX, float* dirZ)
-{
-    if (currentMap.pointCount < 4) {
-        *sx = 0.0f;
-        *sz = 0.0f;
-        *dirX = 0.0f;
-        *dirZ = -1.0f;
-        return;
-    }
-
-    int i0 = wrapIndex(-1, currentMap.pointCount);
-    int i1 = wrapIndex(0,  currentMap.pointCount);
-    int i2 = wrapIndex(1,  currentMap.pointCount);
-    int i3 = wrapIndex(2,  currentMap.pointCount);
-
-    RoadPoint p0 = currentMap.points[i0];
-    RoadPoint p1 = currentMap.points[i1];
-    RoadPoint p2 = currentMap.points[i2];
-    RoadPoint p3 = currentMap.points[i3];
-
-    RoadPoint a = catmullRomPoint(p0, p1, p2, p3, 0.0f);
-    RoadPoint b = catmullRomPoint(p0, p1, p2, p3, 0.03f);
-
-    float dx = b.x - a.x;
-    float dz = b.z - a.z;
-    float len = sqrtf(dx * dx + dz * dz);
-
-    if (len <= 0.0001f) {
-        dx = 0.0f;
-        dz = -1.0f;
-        len = 1.0f;
-    }
-
-    dx /= len;
-    dz /= len;
-
-    *sx = a.x;
-    *sz = a.z;
-    *dirX = dx;
-    *dirZ = dz;
 }
 
 static void renderRoad()
@@ -823,12 +1226,10 @@ void renderMap()
     renderGround();
     renderClouds();
     renderRoad();
+    renderOilPatches();
+    renderCoins();
     renderCheckeredStartLine();
     renderStartPoles();
-
-    for (int i = 0; i < currentMap.obstacleCount; i++) {
-        renderObstacle(currentMap.obstacles[i]);
-    }
 
     for (int i = 0; i < currentMap.lakeCount; i++) {
         renderLake(currentMap.lakes[i]);
