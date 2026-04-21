@@ -1,0 +1,122 @@
+{
+  "car": {
+    "maxSpeed": 2.5,
+    "acceleration": 0.07,
+    "friction": 0.98,
+    "carRadius": 0.9
+  },
+
+  "game": {
+    "lives": 3,
+    "coinValue": 10
+  },
+
+  "world": {
+    "width": 1000,
+    "depth": 1000
+  },
+
+  "graphics": {
+    "brightness": 1.0
+  },
+
+  "camera": {
+    "baseDistance": 6.0,
+    "maxDistance": 10.0,
+    "distanceSpeedFactor": 4.0,
+    "baseHeight": 2.0,
+    "heightSpeedFactor": 1.5,
+    "directionSmooth": 0.08,
+    "baseSmooth": 0.08,
+    "smoothSpeedFactor": 0.15,
+    "maxSmooth": 0.3,
+    "reverseThreshold": -0.02,
+    "minVertical": -10.0,
+    "maxVertical": 80.0
+  },
+
+  "timing": {
+    "hitFlashDuration": 10,
+    "hitCooldown": 30,
+    "oilSlipDuration": 80
+  },
+
+  "effects": {
+    "rainTurnMultiplier": 1.3,
+    "rainFriction": 0.992,
+    "rainAccelerationMultiplier": 0.8,
+    "oilTurnMultiplier": 0.2,
+    "oilFriction": 0.996
+  },
+
+  "objects": {
+    "trees": 100,
+    "clouds": 40,
+    "coins": 120,
+    "oilPatches": 4,
+    "rainZones": 2,
+    "lakes": 8
+  },
+
+  "road": {
+    "pointCount": 70,
+    "radius": 250.0,
+    "width": 10.0,
+    "closed": 1,
+    "randomOffsetMin": -10.0,
+    "randomOffsetMax": 10.0
+  },
+
+  "lake": {
+    "baseRadiusMin": 15.0,
+    "baseRadiusMax": 55.0,
+    "shorePadding": 8.0
+  },
+
+  "tree": {
+    "scaleMin": 0.8,
+    "scaleMax": 1.5,
+    "roadPadding": 4.0,
+    "collisionRadiusFactor": 0.88
+  },
+
+  "cloud": {
+    "heightMin": 30.0,
+    "heightMax": 60.0,
+    "scaleMin": 1.0,
+    "scaleMax": 2.0,
+    "driftSpeed": 0.0005
+  },
+
+  "oilPatch": {
+    "radiusMin": 2.2,
+    "radiusMax": 3.2
+  },
+
+  "sky": {
+    "r": 0.4,
+    "g": 0.7,
+    "b": 1.0
+  },
+
+  "ground": {
+    "r": 0.2,
+    "g": 0.55,
+    "b": 0.2
+  },
+
+  "cloudsData": [
+    {
+      "x": 100.0,
+      "z": -200.0,
+      "y": 40.0,
+      "scale": 1.2
+    },
+    {
+      "x": -150.0,
+      "z": 80.0,
+      "y": 35.0,
+      "scale": 0.9
+    }
+  ]
+}

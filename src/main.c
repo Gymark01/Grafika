@@ -3,6 +3,7 @@
 #include "../includes/car.h"
 #include "../includes/lighting.h"
 #include "../includes/assets.h"
+#include "../includes/config.h"
 
 #include <GL/freeglut.h>
 
@@ -11,7 +12,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <mmsystem.h>
-#pragma comment (lib, "winmm.lib")
+#include <direct.h>
 
 typedef enum {
     MENU_MAIN,
@@ -25,15 +26,14 @@ bool showMenu = false;
 int selectedMenuItem = 0;
 Camera camera;
 Car car;
-int hitFlashTimer = 0;
 bool keyW = false, keyS = false, keyA = false, keyD = false, keySpace = false;
-float brightness = 1.0f;
 bool gameOver = false;
 int selectedGameOverItem = 0;
-int score = 0;
 float previousStartSide = 0.0f;
 int startLineReady = 0;
-
+int hitFlashTimer = 0;
+int score = 0;
+float brightness = 1.0f;
 
 float getCarStartSide(float carX, float carZ)
 {
@@ -471,7 +471,7 @@ void display()
     float skyR, skyG, skyB;
     getSkyColor(&skyR, &skyG, &skyB);
 
-    float carRadius = 0.9f;
+    float carRadius = config.car.carRadius;
 
     glClearColor(skyR * brightness, skyG * brightness, skyB * brightness, 1.0f);
 
@@ -481,7 +481,7 @@ void display()
         updateCar(&car, keyW, keyS, keyA, keyD, keySpace);
 
         if (checkOilPatchCollision(car.position.x, car.position.z, carRadius)) {
-            car.oilSlipTimer = 120;
+            car.oilSlipTimer = config.timing.oilSlipDuration;
         }
 
         if (car.oilSlipTimer > 0) {
@@ -501,25 +501,23 @@ void display()
         }
 
         if (collectCoinAt(car.position.x, car.position.z, carRadius)) {
-            score += 10;
+            score += config.game.coinValue;
             PlaySound(TEXT("assets/Sounds/coin.wav"), NULL, SND_ASYNC | SND_FILENAME);
         }
-
-        float carRadius = 0.9f;
 
         if (car.hitCooldown > 0) {
             car.hitCooldown--;
         }
 
-        if (checkLakeCollision(car.position.x, car.position.z, carRadius)) {
+        if (checkLakeCollision(car.position.x, car.position.z)) {
             car.isSinking = 1;
             car.speed = 0.0f;
         }
         else if (car.hitCooldown == 0 && car.justHitObstacle){
             car.lives--;
-            car.hitCooldown = 30;
+            car.hitCooldown = config.timing.hitCooldown;
             car.speed = 0.0f;
-            hitFlashTimer = 10;
+            hitFlashTimer = config.timing.hitFlashDuration;
             PlaySound(TEXT("assets/Sounds/hit.wav"), NULL, SND_ASYNC | SND_FILENAME);
 
 
@@ -529,6 +527,8 @@ void display()
 
         }
     }
+
+    renderHitFlash();
 
     if (hitFlashTimer > 0) {
         hitFlashTimer--;
@@ -563,10 +563,6 @@ void display()
         renderGameOverOverlay();
     }
 
-    if (!hitFlashTimer > 0){
-        hitFlashTimer--;
-    }
-
     glutSwapBuffers();
 }
 
@@ -585,9 +581,11 @@ void reshape(int w, int h)
 
 void init()
 {
+    loadConfig("bin/Debug/config.json");
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_POINT_SMOOTH);
     glPointSize(3);
+
 
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
@@ -601,13 +599,17 @@ void init()
     printf("car vertices: %d faces: %d\n", carModel.vertexCount, carModel.faceCount);
     printf("cloud vertices: %d faces: %d\n", cloudModel.vertexCount, cloudModel.faceCount);
 
-    generateRandomRoad(70,300.0f);
-    generateRandomLakes(8);
-    generateRandomTrees(100);
-    generateRandomClouds(40);
-    generateRoadCoins(70);
-    generateRandomRainZones(2);
-    generateRandomOilPatches(5);
+    generateRandomRoad(config.road.pointCount, config.road.radius);
+    generateRandomLakes(config.objects.lakes);
+    generateRandomTrees(config.objects.trees);
+    generateRandomClouds(config.objects.clouds);
+    generateRoadCoins(config.objects.coins);
+    generateRandomRainZones(config.objects.rainZones);
+    generateRandomOilPatches(config.objects.oilPatches);
+
+    brightness = config.graphics.brightness;
+    score = 0;
+    hitFlashTimer = 0;
 
 
     initCamera(&camera);
@@ -621,6 +623,18 @@ void init()
 
     setCarSpawn(&car, startX, startY, startZ, startAngle);
     snapCameraToTarget(&camera, car.position, car.angle);
+
+    printf("Spawn x=%f z=%f\n", car.position.x, car.position.z);
+    printf("Tree collision: %d\n", checkTreeCollision(car.position.x, car.position.z, config.car.carRadius));
+    printf("Pole collision: %d\n", checkStartPoleCollision(car.position.x, car.position.z, config.car.carRadius));
+    printf("Ground collision: %d\n", checkGroundCollision(car.position.x, car.position.z, config.car.carRadius));
+
+    printf("Spawn x=%f z=%f\n", car.position.x, car.position.z);
+    printf("Ground half width=%f half depth=%f\n",
+           config.world.width / 2.0f,
+           config.world.depth / 2.0f);
+    printf("Ground collision at spawn: %d\n",
+           checkGroundCollision(car.position.x, car.position.z, config.car.carRadius));
 
     previousStartSide = getCarStartSide(car.position.x, car.position.z);
     startLineReady = 1;

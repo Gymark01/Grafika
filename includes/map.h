@@ -1,11 +1,13 @@
 #ifndef MAP_H
 #define MAP_H
 
+#include "../includes/config.h"
+
 #define MAX_ROAD_POINTS 200
 #define MAX_LAKES 50
 #define MAX_RAIN_ZONES 50
 #define NUM_RAIN 1000
-#define MAX_TREES 1000
+#define MAX_TREES 300
 #define MAX_CLOUDS 100
 #define MAX_LAKE_POINTS 32
 #define MAX_COINS 500
@@ -28,16 +30,12 @@ typedef struct {
 } RainZone;
 
 typedef struct{
-    float r, g, b;
-}Color3;
-
-typedef struct{
     float width, depth;
-    Color3 color;
+    ColorConfig color;
 }Ground;
 
 typedef struct{
-    Color3 color;
+    ColorConfig color;
 }Sky;
 
 typedef struct{
@@ -61,8 +59,6 @@ typedef struct {
     float radius;
     int active;
 } OilPatch;
-
-void getSkyColor(float* r, float* g, float* b);
 
 // Stores all map-related data
 typedef struct {
@@ -124,7 +120,7 @@ int checkMapCollision(float x, float z, float radius);
 
 int checkGroundCollision(float x, float z, float radius);
 
-int checkLakeCollision(float x, float y, float radius);
+int checkLakeCollision(float x, float z);
 
 int collectCoinAt(float x, float z, float radius);
 

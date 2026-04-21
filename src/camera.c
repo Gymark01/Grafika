@@ -1,4 +1,5 @@
 #include "../includes/camera.h"
+#include "../includes/config.h"
 
 #include <GL/gl.h>
 #include <GL/freeglut.h>
@@ -15,12 +16,12 @@ void initCamera(Camera* camera)
 {
     camera->horizontal = 0.0f;
     camera->vertical = 0.0f;
-    camera->distance = 8.0f;
+    camera->distance = config.camera.baseDistance;
     camera->followDirection = 1.0f;
 
     camera->position.x = 0.0f;
-    camera->position.y = 4.0f;
-    camera->position.z = 10.0f;
+    camera->position.y = config.camera.baseHeight;
+    camera->position.z = config.camera.baseDistance;
 }
 
 void updateCamera(Camera* camera, vec3 target, float carAngle, float speed)
@@ -28,18 +29,21 @@ void updateCamera(Camera* camera, vec3 target, float carAngle, float speed)
     float rad = degreeToRadian(carAngle);
     float absSpeed = fabs(speed);
 
-    float baseDistance = 6.0f;
-    float maxDistance = 10.0f;
+    float baseDistance = config.camera.baseDistance;
+    float maxDistance = config.camera.maxDistance;
 
-    float distance = baseDistance + absSpeed * 4.0f;
-    if (distance > maxDistance) distance = maxDistance;
+    float distance = baseDistance + absSpeed * config.camera.distanceSpeedFactor;
+    if (distance > maxDistance) {
+        distance = maxDistance;
+    }
 
-    float height = 2.0f + absSpeed * 1.5f;
+    float height = config.camera.baseHeight + absSpeed * config.camera.heightSpeedFactor;
 
-    float targetFollowDirection = (speed < - 0.02f) ? -1.0f : 1.0f;
+    float targetFollowDirection =
+        (speed < config.camera.reverseThreshold) ? -1.0f : 1.0f;
 
-    float directionSmooth = 0.08f;
-    camera->followDirection += (targetFollowDirection - camera->followDirection) * directionSmooth;
+    camera->followDirection +=
+        (targetFollowDirection - camera->followDirection) * config.camera.directionSmooth;
 
     vec3 desired;
 
@@ -47,8 +51,10 @@ void updateCamera(Camera* camera, vec3 target, float carAngle, float speed)
     desired.z = target.z + cosf(rad) * distance * camera->followDirection;
     desired.y = target.y + height;
 
-    float smooth = 0.08f + absSpeed * 0.15f;
-    if (smooth > 0.3f) smooth = 0.3f;
+    float smooth = config.camera.baseSmooth + absSpeed * config.camera.smoothSpeedFactor;
+    if (smooth > config.camera.maxSmooth) {
+        smooth = config.camera.maxSmooth;
+    }
 
     camera->position.x += (desired.x - camera->position.x) * smooth;
     camera->position.y += (desired.y - camera->position.y) * smooth;
@@ -70,21 +76,21 @@ void rotateCamera(Camera* camera, float h, float v)
     camera->horizontal += h;
     camera->vertical += v;
 
-    if(camera->vertical > 80.0f) camera->vertical = 80.0f;
-    if(camera->vertical < -10.0f) camera->vertical = -10.0f;
+    if(camera->vertical > config.camera.maxVertical) camera->vertical = config.camera.maxVertical;
+    if(camera->vertical < config.camera.minVertical) camera->vertical = config.camera.minVertical;
 }
 
 void snapCameraToTarget(Camera* camera, vec3 target, float carAngle)
 {
     float rad = degreeToRadian(carAngle);
 
-    float distance = camera->distance;
-    float height = 4.0f;
+    float distance = config.camera.baseDistance;
+    float height = config.camera.baseHeight;
 
     camera->followDirection = 1.0f;
 
     camera->position.x = target.x + sinf(rad) * distance;
     camera->position.z = target.z + cosf(rad) * distance;
-    camera->position.y = target.z + height;
+    camera->position.y = target.y + height;
 
 }

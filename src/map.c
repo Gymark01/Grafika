@@ -1,6 +1,7 @@
 #include "../includes/map.h"
 #include "../includes/lighting.h"
 #include "../includes/assets.h"
+#include "../includes/config.h"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -29,19 +30,19 @@ static int pointInLake(Lake l, float px, float pz);
 static int isPointInAnyLake(float x, float z);
 
 static void renderGround(void);
-static void renderSingleCloud(Cloud c);
+static void renderSingleCloud(const Cloud* c);
 static void renderClouds(void);
-static void renderLake(Lake l);
-static void renderSingleTree(Tree t);
-static void renderSingleTreeShadow(Tree t);
+static void renderLake(const Lake* l);
+static void renderSingleTree(const Tree* t);
+static void renderSingleTreeShadow(const Tree* t);
 static void renderTrees(void);
 static void renderTreeShadows(void);
-static void renderRainZone(RainZone zone);
-static void drawCenterDashedLine(RoadPoint* samples, int sampleCount);
+static void renderRainZone(const RainZone* zone);
+static void drawCenterDashedLine(const RoadPoint* samples, int sampleCount);
 static void renderRoad(void);
-static void renderSingleCoin(Coin c);
+static void renderSingleCoin(const Coin* c);
 static void renderCoins(void);
-static void renderSingleOilPatch(OilPatch patch);
+static void renderSingleOilPatch(const OilPatch* patch);
 static void renderOilPatches(void);
 
 
@@ -97,18 +98,18 @@ void initMap()
     memset(&currentMap, 0, sizeof(MapData));
     initRain();
 
-    currentMap.ground.width = 1000.0f;
-    currentMap.ground.depth = 1000.0f;
-    currentMap.ground.color.r = 0.2f;
-    currentMap.ground.color.g = 0.55f;
-    currentMap.ground.color.b = 0.2f;
+    currentMap.ground.width = config.world.width;
+    currentMap.ground.depth = config.world.depth;
+    currentMap.ground.color.r = config.ground.r;
+    currentMap.ground.color.g = config.ground.g;
+    currentMap.ground.color.b = config.ground.b;
 
-    currentMap.sky.color.r = 0.4f;
-    currentMap.sky.color.g = 0.7f;
-    currentMap.sky.color.b = 1.0f;
+    currentMap.sky.color.r = config.sky.r;
+    currentMap.sky.color.g = config.sky.g;
+    currentMap.sky.color.b = config.sky.b;
 
-    currentMap.roadWidth = 10.0f;
-    currentMap.closed = 1;
+    currentMap.roadWidth = config.road.width;
+    currentMap.closed = config.road.closed;
 }
 
 void getSkyColor(float* r, float* g, float* b)
@@ -120,9 +121,23 @@ void getSkyColor(float* r, float* g, float* b)
 
 void generateRandomRoad(int pointCount, float radius)
 {
+
+    float maxOffset = fabsf(config.road.randomOffsetMin);
+    if (fabsf(config.road.randomOffsetMax) > maxOffset) {
+        maxOffset = fabsf(config.road.randomOffsetMax);
+    }
+
+    float safeHalfW = currentMap.ground.width / 2.0f - maxOffset - config.car.carRadius - 10.0f;
+    float safeHalfD = currentMap.ground.depth / 2.0f - maxOffset - config.car.carRadius - 10.0f;
+    float safeRadius = safeHalfW < safeHalfD ? safeHalfW : safeHalfD;
+
+    if (radius > safeRadius) {
+        radius = safeRadius;
+    }
+
     currentMap.pointCount = pointCount;
-    currentMap.closed = 1;
-    currentMap.roadWidth = 10.0f;
+    currentMap.closed = config.road.closed;
+    currentMap.roadWidth = config.road.width;
 
     for (int i = 0; i < pointCount; i++) {
         float angle = ((float)i / pointCount) * 2.0f * 3.1415926f;
@@ -130,8 +145,9 @@ void generateRandomRoad(int pointCount, float radius)
         float baseX = cosf(angle) * radius;
         float baseZ = sinf(angle) * radius;
 
-        float offsetX = (rand() % 20 - 10);
-        float offsetZ = (rand() % 20 - 10);
+        float offsetRange = config.road.randomOffsetMax - config.road.randomOffsetMin;
+        float offsetX = config.road.randomOffsetMin + ((float)rand() / RAND_MAX) * offsetRange;
+        float offsetZ = config.road.randomOffsetMin + ((float)rand() / RAND_MAX) * offsetRange;
 
         currentMap.points[i].x = baseX + offsetX;
         currentMap.points[i].z = baseZ + offsetZ;
@@ -204,7 +220,8 @@ void generateRandomLakes(int count)
 
         int pointCount = 24;
 
-        float baseRadius = 15.0f + rand() % 40;
+        float radiusRange = config.lake.baseRadiusMax - config.lake.baseRadiusMin;
+        float baseRadius = config.lake.baseRadiusMin + ((float)rand() / RAND_MAX) * radiusRange;
 
         Lake lake;
         lake.x = cx;
@@ -267,7 +284,11 @@ void generateRandomTrees(int count)
 
         currentMap.trees[currentMap.treeCount].x = x;
         currentMap.trees[currentMap.treeCount].z = z;
-        currentMap.trees[currentMap.treeCount].scale = 0.8f + (float)(rand() % 70) / 100.0f;
+
+        float scaleRange = config.tree.scaleMax - config.tree.scaleMin;
+        currentMap.trees[currentMap.treeCount].scale =
+        config.tree.scaleMin + ((float)rand() / RAND_MAX) * scaleRange;
+
         currentMap.trees[currentMap.treeCount].type = rand() % 3;
 
         currentMap.treeCount++;
@@ -285,9 +306,14 @@ void generateRandomClouds(int count)
 
         currentMap.clouds[i].x = ((float)rand() / RAND_MAX) * width - (width / 2.0f);
         currentMap.clouds[i].z = ((float)rand() / RAND_MAX) * depth - (depth / 2.0f);
+        float heightRange = config.cloud.heightMax - config.cloud.heightMin;
+        float scaleRange = config.cloud.scaleMax - config.cloud.scaleMin;
 
-        currentMap.clouds[i].y = 30 + rand()%30;
-        currentMap.clouds[i].scale = 1.0f + (rand()%100)/100.0f;
+        currentMap.clouds[i].y =
+            config.cloud.heightMin + ((float)rand() / RAND_MAX) * heightRange;
+
+        currentMap.clouds[i].scale =
+            config.cloud.scaleMin + ((float)rand() / RAND_MAX) * scaleRange;
     }
 }
 
@@ -297,10 +323,6 @@ void generateRandomRainZones(int count)
 
     if (currentMap.pointCount < 4) {
         return;
-    }
-
-    if (count > 2) {
-        count = 2;
     }
 
     for (int i = 0; i < count && currentMap.rainZoneCount < MAX_RAIN_ZONES; i++) {
@@ -381,7 +403,8 @@ void generateRandomOilPatches(int count)
         OilPatch patch;
         patch.x = samples[index].x;
         patch.z = samples[index].z;
-        patch.radius = 2.2f + ((float)(rand() % 100) / 100.0f);
+        float radiusRange = config.oilPatch.radiusMax - config.oilPatch.radiusMin;
+        patch.radius = config.oilPatch.radiusMin + ((float)rand() / RAND_MAX) * radiusRange;
         patch.active = 1;
 
         currentMap.oilPatches[currentMap.oilPatchCount++] = patch;
@@ -459,7 +482,7 @@ static int isNearRoad(float x, float z)
         }
     }
 
-    return minDist < (currentMap.roadWidth * 0.5f + 4.0f);
+    return minDist < (currentMap.roadWidth * 0.5f + config.tree.roadPadding);
 }
 
 static int isLakeNearRoad(float centerX, float centerZ, float width, float depth)
@@ -514,7 +537,7 @@ static int isLakeNearRoad(float centerX, float centerZ, float width, float depth
             }
         }
 
-        if (minDist < (currentMap.roadWidth * 0.5f + 8.0f)) {
+        if (minDist < (currentMap.roadWidth * 0.5f + config.lake.shorePadding)) {
             return 1;
         }
     }
@@ -555,7 +578,7 @@ static int isPointInAnyLake(float x, float z)
     return 0;
 }
 
-int checkLakeCollision(float x, float z, float radius)
+int checkLakeCollision(float x, float z)
 {
     for (int i = 0; i < currentMap.lakeCount; i++) {
         if (pointInLake(currentMap.lakes[i], x, z)) {
@@ -568,7 +591,7 @@ int checkLakeCollision(float x, float z, float radius)
 int checkTreeCollision(float x, float z, float radius)
 {
     for (int i = 0; i < currentMap.treeCount; i++){
-        float treeRadius = 0.88f * currentMap.trees[i].scale;
+        float treeRadius = config.tree.collisionRadiusFactor * currentMap.trees[i].scale;
         float dist = distance2D(x, z, currentMap.trees[i].x, currentMap.trees[i].z);
 
         if ( dist < radius + treeRadius){
@@ -740,13 +763,13 @@ static void renderGround()
     glEnd();
 }
 
-static void renderSingleCloud(Cloud c)
+static void renderSingleCloud(const Cloud* c)
 {
     glPushMatrix();
 
-    float offset = glutGet(GLUT_ELAPSED_TIME) * 0.0005f;
-    glTranslatef(c.x + offset, c.y, c.z);
-    glScalef(0.01f * c.scale,0.01f * c.scale,0.01f * c.scale);
+    float offset = glutGet(GLUT_ELAPSED_TIME) * config.cloud.driftSpeed;
+    glTranslatef(c->x + offset, c->y, c->z);
+    glScalef(0.01f * c->scale, 0.01f * c->scale, 0.01f * c->scale);
 
     glColor3f(1.0f, 1.0f, 1.0f);
     renderModel(&cloudModel);
@@ -758,11 +781,11 @@ static void renderClouds()
 {
     for (int i = 0; i < currentMap.cloudCount; i++)
     {
-        renderSingleCloud(currentMap.clouds[i]);
+        renderSingleCloud(&currentMap.clouds[i]);
     }
 }
 
-static void renderLake(Lake l)
+static void renderLake(const Lake* l)
 {
     float sandR = 0.76f * brightness;
     float sandG = 0.68f * brightness;
@@ -789,55 +812,55 @@ static void renderLake(Lake l)
     if (waterB > 1.0f) waterB = 1.0f;
 
     glPushMatrix();
-    glTranslatef(l.x, 0.0f, l.z);
+    glTranslatef(l->x, 0.0f, l->z);
 
     glColor3f(sandR, sandG, sandB);
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(0.0f, 0.004f, 0.0f);
-    for (int i = 0; i <= l.pointCount; i++) {
-        int idx = i % l.pointCount;
-        glVertex3f(l.points[idx][0] * 1.22f, 0.004f, l.points[idx][1] * 1.22f);
+    for (int i = 0; i <= l->pointCount; i++) {
+        int idx = i % l->pointCount;
+        glVertex3f(l->points[idx][0] * 1.22f, 0.004f, l->points[idx][1] * 1.22f);
     }
     glEnd();
 
     glColor3f(wetR, wetG, wetB);
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(0.0f, 0.007f, 0.0f);
-    for (int i = 0; i <= l.pointCount; i++) {
-        int idx = i % l.pointCount;
-        glVertex3f(l.points[idx][0] * 1.08f, 0.007f, l.points[idx][1] * 1.08f);
+    for (int i = 0; i <= l->pointCount; i++) {
+        int idx = i % l->pointCount;
+        glVertex3f(l->points[idx][0] * 1.08f, 0.007f, l->points[idx][1] * 1.08f);
     }
     glEnd();
 
     glColor3f(waterR, waterG, waterB);
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(0.0f, 0.010f, 0.0f);
-    for (int i = 0; i <= l.pointCount; i++) {
-        int idx = i % l.pointCount;
-        glVertex3f(l.points[idx][0], 0.010f, l.points[idx][1]);
+    for (int i = 0; i <= l->pointCount; i++) {
+        int idx = i % l->pointCount;
+        glVertex3f(l->points[idx][0], 0.010f, l->points[idx][1]);
     }
     glEnd();
 
     glPopMatrix();
 }
 
-static void renderSingleOilPatch(OilPatch patch)
+static void renderSingleOilPatch(const OilPatch* patch)
 {
-    if (!patch.active) {
+    if (!patch->active) {
         return;
     }
 
     glColor3f(0.05f, 0.05f, 0.05f);
 
     glPushMatrix();
-    glTranslatef(patch.x, 0.015f, patch.z);
+    glTranslatef(patch->x, 0.015f, patch->z);
 
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(0.0f, 0.0f, 0.0f);
 
     for (int i = 0; i <= 24; i++) {
         float angle = (2.0f * 3.1415926535f * i) / 24.0f;
-        float r = patch.radius * (0.85f + 0.15f * sinf(i * 1.7f));
+        float r = patch->radius * (0.85f + 0.15f * sinf(i * 1.7f));
         glVertex3f(cosf(angle) * r, 0.0f, sinf(angle) * r);
     }
 
@@ -848,24 +871,24 @@ static void renderSingleOilPatch(OilPatch patch)
 static void renderOilPatches(void)
 {
     for (int i = 0; i < currentMap.oilPatchCount; i++) {
-        renderSingleOilPatch(currentMap.oilPatches[i]);
+        renderSingleOilPatch(&currentMap.oilPatches[i]);
     }
 }
 
-static void renderSingleTree(Tree t)
+static void renderSingleTree(const Tree* t)
 {
     glPushMatrix();
-    glTranslatef(t.x, 0.0f, t.z);
-    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
+    glTranslatef(t->x, 0.0f, t->z);
+    glScalef(0.08f * t->scale, 0.08f * t->scale, 0.08f * t->scale);
     renderModel(&treeModel1);
     glPopMatrix();
 }
 
-static void renderSingleTreeShadow(Tree t)
+static void renderSingleTreeShadow(const Tree* t)
 {
     glPushMatrix();
-    glTranslatef(t.x, 0.0f, t.z);
-    glScalef(0.08f * t.scale, 0.08f * t.scale, 0.08f * t.scale);
+    glTranslatef(t->x, 0.0f, t->z);
+    glScalef(0.08f * t->scale, 0.08f * t->scale, 0.08f * t->scale);
     renderShadowModel(&treeModel1, 1.0f, 2.0f, 0.7f);
     glPopMatrix();
 }
@@ -873,25 +896,25 @@ static void renderSingleTreeShadow(Tree t)
 static void renderTreeShadows()
 {
     for (int i = 0; i < currentMap.treeCount; i++) {
-        renderSingleTreeShadow(currentMap.trees[i]);
+        renderSingleTreeShadow(&currentMap.trees[i]);
     }
 }
 
 static void renderTrees()
 {
     for (int i = 0; i < currentMap.treeCount; i++){
-        renderSingleTree(currentMap.trees[i]);
+        renderSingleTree(&currentMap.trees[i]);
     }
 }
 
-static void renderRainZone(RainZone zone)
+static void renderRainZone(const RainZone* zone)
 {
-    float halfW = zone.width / 2.0f;
-    float halfD = zone.depth / 2.0f;
+    float halfW = zone->width / 2.0f;
+    float halfD = zone->depth / 2.0f;
 
     glPushMatrix();
-    glTranslatef(zone.x, 0.0f, zone.z);
-    glRotatef(zone.angle, 0.0f, 1.0f, 0.0f);
+    glTranslatef(zone->x, 0.0f, zone->z);
+    glRotatef(zone->angle, 0.0f, 1.0f, 0.0f);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -928,13 +951,9 @@ static void renderRainZone(RainZone zone)
 
     glBegin(GL_LINES);
 
-    glColor3f(0.8f, 0.8f, 1.0f);
-
-    glBegin(GL_LINES);
-
     for (int i = 0; i < NUM_RAIN; i++) {
-        float localX = ((float)(rand() % 1000) / 1000.0f - 0.5f) * (zone.depth + halfW);
-        float localZ = ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone.width;
+        float localX = ((float)(rand() % 1000) / 1000.0f - 0.5f) * (zone->depth + halfW);
+        float localZ = ((float)(rand() % 1000) / 1000.0f - 0.5f) * zone->width;
         float y = rain[i][1];
 
         glVertex3f(localX, y, localZ);
@@ -952,9 +971,9 @@ static void renderRainZone(RainZone zone)
     glPopMatrix();
 }
 
-static void renderSingleCoin(Coin c)
+static void renderSingleCoin(const Coin* c)
 {
-    if (!c.active) {
+    if (!c->active) {
         return;
     }
 
@@ -962,7 +981,7 @@ static void renderSingleCoin(Coin c)
 
     float rot = glutGet(GLUT_ELAPSED_TIME) * 0.2f;
 
-    glTranslatef(c.x, c.y, c.z);
+    glTranslatef(c->x, c->y, c->z);
     glRotatef(rot, 0.0f, 1.0f, 0.0f);
     glScalef(0.7f, 0.7f, 0.7f);
 
@@ -974,7 +993,7 @@ static void renderSingleCoin(Coin c)
 static void renderCoins(void)
 {
     for (int i = 0; i < currentMap.coinCount; i++) {
-        renderSingleCoin(currentMap.coins[i]);
+        renderSingleCoin(&currentMap.coins[i]);
     }
 }
 
@@ -997,7 +1016,7 @@ int collectCoinAt(float x, float z, float radius)
     return 0;
 }
 
-static void drawCenterDashedLine(RoadPoint* samples, int sampleCount)
+static void drawCenterDashedLine(const RoadPoint* samples, int sampleCount)
 {
     if (sampleCount < 2) return;
 
@@ -1232,11 +1251,11 @@ void renderMap()
     renderStartPoles();
 
     for (int i = 0; i < currentMap.lakeCount; i++) {
-        renderLake(currentMap.lakes[i]);
+        renderLake(&currentMap.lakes[i]);
     }
 
     for (int i = 0; i < currentMap.rainZoneCount; i++) {
-        renderRainZone(currentMap.rainZones[i]);
+        renderRainZone(&currentMap.rainZones[i]);
     }
 
     renderTreeShadows();

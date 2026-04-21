@@ -11,7 +11,7 @@
 
 static void getDirectoryFromPath(const char* path, char* outDir)
 {
-    strcpy(outDir, path);
+    snprintf(outDir, 512, "%s", path);
 
     char* lastSlash1 = strrchr(outDir, '/');
     char* lastSlash2 = strrchr(outDir, '\\');
@@ -26,7 +26,7 @@ static void getDirectoryFromPath(const char* path, char* outDir)
 
 static void buildPath(const char* dir, const char* file, char* outPath)
 {
-    sprintf(outPath, "%s%s", dir, file);
+    snprintf(outPath, 512, "%s%s", dir, file);
 }
 
 static GLuint loadTexture(const char* filename)
@@ -125,13 +125,6 @@ static void loadMTL(const char* mtlPath, Model* model)
                     model->materials = (Material*)realloc(model->materials, materialCapacity * sizeof(Material));
                 }
 
-                printf("MTL: %s  Kd=(%f, %f, %f)  tex=%u\n",
-                       currentMaterial.name,
-                       currentMaterial.kd[0],
-                       currentMaterial.kd[1],
-                       currentMaterial.kd[2],
-                       currentMaterial.textureID);
-
                 model->materials[model->materialCount++] = currentMaterial;
             }
 
@@ -168,13 +161,6 @@ static void loadMTL(const char* mtlPath, Model* model)
             model->materials = (Material*)realloc(model->materials, materialCapacity * sizeof(Material));
         }
 
-        printf("MTL: %s  Kd=(%f, %f, %f)  tex=%u\n",
-               currentMaterial.name,
-               currentMaterial.kd[0],
-               currentMaterial.kd[1],
-               currentMaterial.kd[2],
-               currentMaterial.textureID);
-
         model->materials[model->materialCount++] = currentMaterial;
     }
 
@@ -195,6 +181,7 @@ int loadOBJ(const char* filename, Model* model)
     model->texcoords = NULL;
     model->faces = NULL;
     model->materials = NULL;
+    model->fallbackTextureID = 0;
 
     model->vertexCount = 0;
     model->texcoordCount = 0;
@@ -232,8 +219,6 @@ int loadOBJ(const char* filename, Model* model)
             char materialName[64];
             sscanf(ptr, "usemtl %63s", materialName);
             currentMaterialIndex = findMaterialIndex(model, materialName);
-
-            printf("usemtl: %s -> index = %d\n", materialName, currentMaterialIndex);
         }
         else if (strncmp(ptr, "v ", 2) == 0) {
             if (model->vertexCount >= vertexCapacity) {
@@ -306,13 +291,6 @@ int loadOBJ(const char* filename, Model* model)
 
     fclose(file);
 
-    printf("%s -> vertices: %d texcoords: %d faces: %d materials: %d\n",
-           filename,
-           model->vertexCount,
-           model->texcoordCount,
-           model->faceCount,
-           model->materialCount);
-
     return 1;
 }
 
@@ -335,17 +313,6 @@ void renderModel(const Model* model)
                 counts[mi]++;
             }
         }
-
-        for (int i = 0; i < model->materialCount; i++) {
-            printf("material[%d] = %s, faces = %d, Kd=(%f,%f,%f)\n",
-                   i,
-                   model->materials[i].name,
-                   counts[i],
-                   model->materials[i].kd[0],
-                   model->materials[i].kd[1],
-                   model->materials[i].kd[2]);
-        }
-
         printed = 1;
     }
 
@@ -486,6 +453,10 @@ void freeModel(Model* model)
         }
     }
 
+    if (model->fallbackTextureID != 0){
+        glDeleteTextures(1, &model->fallbackTextureID);
+    }
+
     free(model->vertices);
     free(model->texcoords);
     free(model->faces);
@@ -495,6 +466,7 @@ void freeModel(Model* model)
     model->texcoords = NULL;
     model->faces = NULL;
     model->materials = NULL;
+    model->fallbackTextureID = 0;
 
     model->vertexCount = 0;
     model->texcoordCount = 0;

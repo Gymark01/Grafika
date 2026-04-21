@@ -1,6 +1,7 @@
 # depslib dependency file v1.0
-1776175368 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\camera.c
+1776807689 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\camera.c
 	"../includes/camera.h"
+	"../includes/config.h"
 	<GL/gl.h>
 	<GL/freeglut.h>
 	<GL/glu.h>
@@ -10,18 +11,20 @@
 	"../includes/math3d.h"
 	<stdbool.h>
 
-1776436297 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
+1776808642 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
 	"../includes/map.h"
 	"../includes/camera.h"
 	"../includes/car.h"
 	"../includes/lighting.h"
 	"../includes/assets.h"
+	"../includes/config.h"
 	<GL/freeglut.h>
 	<math.h>
 	<stdbool.h>
 	<stdio.h>
 	<windows.h>
 	<mmsystem.h>
+	<direct.h>
 
 1774352285 c:\users\gyöngyösi márk\glfw\glfw-3.4.bin.win64\include\glfw\glfw3.h
 	<stddef.h>
@@ -47,12 +50,14 @@
 	<GL/gl.h>
 	<GL/glext.h>
 
-1776437907 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\map.h
+1776807689 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\map.h
+	"../includes/config.h"
 
-1776437907 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\map.c
+1776807689 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\map.c
 	"../includes/map.h"
 	"../includes/lighting.h"
 	"../includes/assets.h"
+	"../includes/config.h"
 	<GL/gl.h>
 	<GL/glu.h>
 	<GL/freeglut.h>
@@ -63,16 +68,17 @@
 
 1774449239 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\math3d.h
 
-1776437907 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\car.c
+1776807689 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\car.c
 	"../includes/car.h"
 	"../includes/lighting.h"
 	"../includes/assets.h"
 	"../includes/map.h"
+	"../includes/config.h"
 	<GL/freeglut.h>
 	<math.h>
 	<stdio.h>
 
-1776437907 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\car.h
+1776805029 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\car.h
 	"math3d.h"
 
 1775839611 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\lighting.h
@@ -94,17 +100,17 @@
 1774956313 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\cjson.h
 	<stddef.h>
 
-1776375454 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\assets.c
+1776805029 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\assets.c
 	"../includes/assets.h"
 	<stdio.h>
 
 1776372484 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\assets.h
 	"../includes/model.h"
 
-1776375454 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\model.h
+1776805029 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\model.h
 	<GL/gl.h>
 
-1776375454 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\model.c
+1776805029 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\model.c
 	"../includes/model.h"
 	"../includes/lighting.h"
 	<GL/gl.h>
@@ -481,4 +487,13 @@
 
 1712773290 c:\program files\codeblocks\mingw\include\assert.h
 	<_mingw.h>
+
+1776805057 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\config.c
+	"../includes/config.h"
+	"../includes/cJSON.h"
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+
+1776805029 c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\includes\config.h
 

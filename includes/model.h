@@ -13,9 +13,7 @@ typedef struct {
     float u, v;
 } TexCoord;
 
-// Represents a triangle face.
-// Stores indices into vertex and texture arrays,
-// plus the material used for this face.
+// Represents a triangle face with vertex, texture, and material indices.
 typedef struct {
     int v[3];
     int vt[3];
@@ -56,6 +54,7 @@ void renderShadowModel(const Model* model, float lightX, float lightY, float lig
 // Frees all allocated memory and OpenGL textures used by the model.
 void freeModel(Model* model);
 
+// Loads a texture image manually and returns its OpenGL texture ID.
 GLuint loadModelTexture(const char* filename);
 
 #endif

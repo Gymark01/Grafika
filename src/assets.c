@@ -34,6 +34,9 @@ void loadAssets()
         printf("Error: coin.obj\n");
     } else {
         coinModel.fallbackTextureID = loadModelTexture("assets/coin/Coin.png");
+        if (coinModel.fallbackTextureID == 0) {
+            printf("Error: Coin.png\n");
+        }
     }
 }
 

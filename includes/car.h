@@ -3,7 +3,7 @@
 
 #include "math3d.h"
 
-// Represents the player-controlled car.
+// Represents the player controlled car and gameplay state.
 typedef struct {
     vec3 position;
     float angle;
@@ -15,19 +15,19 @@ typedef struct {
     int oilSlipTimer;
 } Car;
 
-// Initializes the car with default values (position, angle, speed).
+// Initializes the car state, position, movement, game related fields
 void initCar(Car* car);
 
-// Updates car movement and rotation based on input keys.
+// Updates car movement and rotation based on input keys
 void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace);
 
-// Renders the car model at its current position and orientation.
+// Renders the car model at its current position and orientation
 void renderCar(Car* car);
 
-// Renders a projected shadow of the car onto the ground.
+// Renders a projected shadow of the car onto the ground
 void renderCarShadow(Car* car);
 
-// Sets the initial spawn position and orientation of the car.
+// Sets the initial spawn position and orientation of the car
 void setCarSpawn(Car* car, float x, float y, float z, float angle);
 
 #endif

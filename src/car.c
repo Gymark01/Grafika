@@ -2,17 +2,12 @@
 #include "../includes/lighting.h"
 #include "../includes/assets.h"
 #include "../includes/map.h"
+#include "../includes/config.h"
 
 #include <GL/freeglut.h>
 
 #include <math.h>
 #include <stdio.h>
-
-static float acceleration = 0.06f;
-
-static float maxSpeed = 2.0f;
-
-static float friction = 0.98f;
 
 void initCar(Car* car){
     car->position.x = 0.0f;
@@ -23,7 +18,7 @@ void initCar(Car* car){
     car->speed = 0.0f;
 
     car->isSinking = 0;
-    car->lives = 3;
+    car->lives = config.game.lives;
     car->hitCooldown = 0;
     car->justHitObstacle = 0;
     car->oilSlipTimer = 0;
@@ -31,11 +26,16 @@ void initCar(Car* car){
 
 void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
 {
+
+    float acceleration = config.car.acceleration;
+    float maxSpeed = config.car.maxSpeed;
+    float friction = config.car.friction;
+
     int inRain = isPointInRainZone(car->position.x, car->position.z);
     float boostMultiplier = keySpace ? 1.5f : 1.0f;
     float traction = inRain ? 0.8f : 1.0f;
     float currentAcceleration = acceleration * boostMultiplier * traction;
-    float currentmaxSpeed = maxSpeed * boostMultiplier;
+    float currentMaxSpeed = maxSpeed * boostMultiplier;
     int inOilSlip = (car->oilSlipTimer > 0);
 
     float turnSpeed = 0.0f;
@@ -43,14 +43,14 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
     car->justHitObstacle = 0;
 
     if (fabs(car->speed) > 0.001f){
-        turnSpeed = 6.0f * (fabs(car->speed) / currentmaxSpeed);
+        turnSpeed = 6.0f * (fabs(car->speed) / maxSpeed);
 
         if (inRain) {
-            turnSpeed *= 2.0f;
+            turnSpeed *= config.effects.rainTurnMultiplier;
         }
 
         if (inOilSlip) {
-            turnSpeed *= 0.18f;
+            turnSpeed *= config.effects.oilTurnMultiplier;
         }
     }
 
@@ -58,8 +58,8 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
 
     if (keyS) car->speed -= currentAcceleration;
 
-    if (car->speed > currentmaxSpeed) car->speed = currentmaxSpeed;
-    if (car->speed < -currentmaxSpeed) car->speed = -currentmaxSpeed;
+    if (car->speed > currentMaxSpeed) car->speed = currentMaxSpeed;
+    if (car->speed < -currentMaxSpeed) car->speed = -currentMaxSpeed;
 
     if (fabs(car->speed) > 0.001f){
         if (keyA) car->angle += turnSpeed;
@@ -72,11 +72,11 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
     float currentFriction = friction;
 
     if (inRain) {
-        currentFriction = 0.8f;
+        currentFriction = config.effects.rainFriction;
     }
 
     if (inOilSlip) {
-        currentFriction = 1.0f;
+        currentFriction = config.effects.oilFriction;
     }
 
     if (!keyW && !keyS) {
@@ -95,7 +95,7 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
     float newX = car->position.x + forwardX * car->speed;
     float newZ = car->position.z + forwardZ * car->speed;
 
-    float carRadius = 0.9f;
+    float carRadius = config.car.carRadius;
 
     if (!checkMapCollision(newX, newZ, carRadius)) {
         car->position.x = newX;
@@ -148,7 +148,7 @@ void setCarSpawn(Car* car, float x, float y, float z, float angle)
     car->speed = 0.0f;
 
     car->isSinking = 0;
-    car->lives = 3;
+    car->lives = config.game.lives;
     car->hitCooldown = 0;
     car->justHitObstacle = 0;
     car->oilSlipTimer = 0;
