@@ -11,7 +11,7 @@
 	"../includes/math3d.h"
 	<stdbool.h>
 
-1776808642 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
+1776809118 source:c:\users\gyöngyösi márk\desktop\egyetem\graphicdesignassignment\src\main.c
 	"../includes/map.h"
 	"../includes/camera.h"
 	"../includes/car.h"
