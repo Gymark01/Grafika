@@ -101,6 +101,8 @@ void renderStartPoles();
 
 void generateRandomRoad(int pointCount, float radius);
 
+void generateRandomLakes(int count);
+
 void generateRandomTrees(int count);
 
 void generateRandomClouds(int count);

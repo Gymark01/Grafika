@@ -32,8 +32,8 @@ void updateCar(Car* car, int keyW, int keyS, int keyA, int keyD, int keySpace)
     float friction = config.car.friction;
 
     int inRain = isPointInRainZone(car->position.x, car->position.z);
-    float boostMultiplier = keySpace ? 1.5f : 1.0f;
-    float traction = inRain ? 0.8f : 1.0f;
+    float boostMultiplier = keySpace ? 1.9f : 1.0f;
+    float traction = inRain ? 0.7f : 1.0f;
     float currentAcceleration = acceleration * boostMultiplier * traction;
     float currentMaxSpeed = maxSpeed * boostMultiplier;
     int inOilSlip = (car->oilSlipTimer > 0);

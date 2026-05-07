@@ -22,8 +22,8 @@
 
   "camera": {
     "baseDistance": 6.0,
-    "maxDistance": 10.0,
-    "distanceSpeedFactor": 4.0,
+    "maxDistance": 8.0,
+    "distanceSpeedFactor": 3.0,
     "baseHeight": 2.0,
     "heightSpeedFactor": 1.5,
     "directionSmooth": 0.08,
@@ -42,7 +42,7 @@
   },
 
   "effects": {
-    "rainTurnMultiplier": 1.3,
+    "rainTurnMultiplier": 1.7,
     "rainFriction": 0.992,
     "rainAccelerationMultiplier": 0.8,
     "oilTurnMultiplier": 0.2,
@@ -53,8 +53,8 @@
     "trees": 100,
     "clouds": 40,
     "coins": 120,
-    "oilPatches": 4,
-    "rainZones": 2,
+    "oilPatches": 6,
+    "rainZones": 4,
     "lakes": 8
   },
 
